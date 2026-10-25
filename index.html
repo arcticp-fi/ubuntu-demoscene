@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>ubuntu × audio · a 90s-style shader demo</title>
+<style>
+  :root{
+    --orange:#E95420; --light:#77216F; --mid:#5E2750; --dark:#2C001E;
+    --grey:#AEA79F; --white:#F7F7F7;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;background:var(--dark);overflow:hidden;color:var(--white);
+    font-family:Ubuntu,"Ubuntu Sans","Cantarell","Segoe UI",system-ui,sans-serif;
+  }
+  #gl{position:fixed;top:0;left:0;width:100%;height:100%;display:block;cursor:crosshair}
+  #tag{
+    position:fixed;top:14px;left:16px;z-index:8;pointer-events:none;user-select:none;
+    font:500 11px/1.6 "Ubuntu Mono",ui-monospace,Menlo,monospace;
+    letter-spacing:.14em;color:rgba(247,247,247,.78);
+    text-shadow:0 1px 3px rgba(44,0,30,.9);
+  }
+  #tag b{color:var(--orange);font-weight:500}
+  #mode{
+    position:fixed;left:16px;bottom:13px;z-index:8;pointer-events:none;user-select:none;
+    font:500 11px "Ubuntu Mono",ui-monospace,monospace;
+    letter-spacing:.1em;color:rgba(247,247,247,.75);
+    text-shadow:0 1px 3px rgba(44,0,30,.9);
+    opacity:0;transition:opacity .4s;
+  }
+  #mode.on{opacity:1}
+  #overlay{
+    position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;
+    background:rgba(44,0,30,.74);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    transition:opacity .6s ease;
+  }
+  #overlay.gone{opacity:0;pointer-events:none}
+  #overlay svg{width:104px;height:104px;filter:drop-shadow(0 8px 22px rgba(233,84,32,.35))}
+  #overlay h1{margin:4px 0 0;font-size:33px;font-weight:500;letter-spacing:.02em}
+  #overlay h1 span{color:var(--orange)}
+  #overlay p{margin:0;color:rgba(247,247,247,.72);font-size:14px;max-width:620px;line-height:1.5}
+  .row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+  .btn{
+    appearance:none;border:0;border-radius:4px;padding:12px 22px;cursor:pointer;
+    font:500 14px/1 Ubuntu,"Ubuntu Sans","Cantarell",sans-serif;letter-spacing:.06em;color:#fff;
+    background:var(--orange);
+    box-shadow:0 2px 0 rgba(44,0,30,.45), 0 10px 26px rgba(233,84,32,.22);
+    transition:transform .12s ease, filter .12s ease, box-shadow .12s ease;
+  }
+  .btn:hover{transform:translateY(-1px);filter:brightness(1.08)}
+  .btn:active{transform:translateY(1px)}
+  .btn.ghost{background:transparent;box-shadow:inset 0 0 0 1px rgba(247,247,247,.35)}
+  .btn.ghost:hover{background:rgba(119,33,111,.28);box-shadow:inset 0 0 0 1px var(--orange);filter:none}
+  .btn.small{padding:9px 12px;font-size:15px}
+  kbd{
+    background:rgba(247,247,247,.12);border:1px solid rgba(247,247,247,.28);
+    border-bottom-width:2px;border-radius:3px;padding:0 5px;
+    font:600 11px "Ubuntu Mono",ui-monospace,monospace;
+  }
+  #hud{
+    position:fixed;right:16px;bottom:12px;z-index:9;display:flex;gap:8px;
+    opacity:0;transition:opacity .35s;pointer-events:none;
+  }
+  #hud.on{opacity:1;pointer-events:auto}
+  #err{
+    position:fixed;inset:0;z-index:20;display:none;align-items:center;justify-content:center;
+    background:var(--dark);padding:24px;text-align:center;
+  }
+  #file{display:none}
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+
+<div id="tag">ubuntu × audio — <b>one file</b> · code+gfx+muz ▸ html · <b>orange &amp; aubergine</b></div>
+<div id="mode"></div>
+
+<div id="overlay">
+  <!-- a friendly procedural stand-in for the circle of friends -->
+  <svg viewBox="-60 -60 120 120" aria-hidden="true">
+    <circle cx="0" cy="0" r="42" fill="none" stroke="#E95420" stroke-width="13"/>
+    <circle cx="0" cy="-42" r="13" fill="#E95420"/>
+    <circle cx="36.4" cy="21" r="13" fill="#E95420"/>
+    <circle cx="-36.4" cy="21" r="13" fill="#E95420"/>
+  </svg>
+  <h1>ubuntu <span>×</span> audio</h1>
+  <p>a one-file shader demo · 90s demoscene spirit · Canonical colours<br>
+     plasma → tunnel → raymarched logo, all dancing to the music</p>
+  <div class="row">
+    <button class="btn" id="btnStart">▶ start the demo</button>
+    <button class="btn ghost" id="btnMic">🎙 use microphone</button>
+    <button class="btn ghost" id="btnFile">🎵 load a tune</button>
+  </div>
+  <p>a chiptune is built in — or feed it your own sound.<br>
+     keys: <kbd>m</kbd> mic · <kbd>o</kbd> file · <kbd>f</kbd> fullscreen · <kbd>esc</kbd> this panel</p>
+</div>
+
+<div id="hud">
+  <button class="btn ghost small" id="btnMic2" title="use microphone (m)">🎙</button>
+  <button class="btn ghost small" id="btnFile2" title="load a tune (o)">🎵</button>
+  <button class="btn ghost small" id="btnMute" title="mute">🔊</button>
+  <button class="btn ghost small" id="btnFull" title="fullscreen (f)">⛶</button>
+</div>
+
+<div id="err"><p>your browser has no WebGL :(<br>try a recent firefox / chrome / safari.</p></div>
+<input type="file" id="file" accept="audio/*">
+
+<script>
+(function(){
+"use strict";
+const $ = s => document.querySelector(s);
+window.addEventListener("error", e => console.error("JSERR:", e.message, e.filename, e.lineno));
+window.addEventListener("unhandledrejection", e => console.error("JSREJ:", e.reason));
+
+/* ============================================================
+   the shader — one big GLSL ES 1.00 fragment program
+   ============================================================ */
+const VS = `
+attribute vec2 aPos;
+void main(){ gl_Position = vec4(aPos, 0.0, 1.0); }
+`;
+
+const FS = `
+precision highp float;
+
+uniform vec2      uRes;     // canvas size (device px)
+uniform float     uTime;    // seconds
+uniform vec4      uLevels;  // bass, mid, high, beat
+uniform vec3      uScene;   // sceneA, sceneB, crossfade
+uniform sampler2D uAudio;   // 256x1 spectrum, 0..1
+uniform sampler2D uText;    // greetings scroller strip
+uniform vec2      uTextSz;  // scroller strip size in px
+
+// ---- Canonical / Ubuntu core palette ----
+const vec3 C_DARK   = vec3(0.173, 0.000, 0.118); // #2C001E dark aubergine
+const vec3 C_MID    = vec3(0.369, 0.153, 0.314); // #5E2750 mid aubergine
+const vec3 C_LIGHT  = vec3(0.467, 0.129, 0.435); // #77216F light aubergine
+const vec3 C_ORANGE = vec3(0.914, 0.329, 0.125); // #E95420 ubuntu orange
+const vec3 C_GREY   = vec3(0.682, 0.655, 0.624); // #AEA79F warm grey
+const vec3 C_WHITE  = vec3(0.969, 0.969, 0.969); // #F7F7F7
+
+mat2 rot(float a){ float c = cos(a), s = sin(a); return mat2(c, s, -s, c); }
+
+float spec(float x){ return texture2D(uAudio, vec2(x*0.96 + 0.02, 0.5)).r; }
+
+// cyclic 5-stop ubuntu palette (dark->mid->light->orange->white->dark)
+vec3 pal(float t){
+  t = fract(t)*5.0;
+  vec3 c = C_DARK;
+  c = mix(c, C_MID,    clamp(t,       0.0, 1.0));
+  c = mix(c, C_LIGHT,  clamp(t - 1.0, 0.0, 1.0));
+  c = mix(c, C_ORANGE, clamp(t - 2.0, 0.0, 1.0));
+  c = mix(c, C_WHITE,  clamp(t - 3.0, 0.0, 1.0));
+  c = mix(c, C_DARK,   clamp(t - 4.0, 0.0, 1.0));
+  return c;
+}
+
+// ---- circle of friends, 2D signed distance (logo radius ~1) ----
+float sdLogo(vec2 p){
+  float d = abs(length(p) - 0.78) - 0.115;              // the ring
+  for (int i = 0; i < 3; i++){                          // the friends
+    float a = 1.5707963 + 2.0943951*float(i);
+    d = min(d, length(p - vec2(cos(a), sin(a))*0.78) - 0.165);
+  }
+  return d;
+}
+
+/* ---------- scene 0: plasma + copper bars + 2d logo ---------- */
+vec3 scenePlasma(vec2 p){
+  float t = uTime;
+  vec2 q = p;
+  q += (0.10 + 0.16*uLevels.x)*vec2(sin(t*0.8 + p.y*4.0), cos(t*0.7 - p.x*4.0));
+  float v = sin(q.x*4.5 + t*1.7)
+          + sin(q.y*5.0 - t*1.2)
+          + sin((q.x + q.y)*3.5 + t*0.8)
+          + sin(length(q)*(6.5 - 2.5*uLevels.x) - t*2.4);
+  v = v*0.22 + 0.5;
+  vec3 col = pal(v*0.42 + t*0.035);
+  float bars = pow(0.5 + 0.5*sin(p.y*24.0 - t*2.6), 4.0);   // copper bars
+  col += C_ORANGE*bars*(0.03 + 0.22*uLevels.y);
+  vec2 lp = rot(t*0.5)*p/(0.30*(1.0 + 0.22*uLevels.w));     // logo, pulsing with the kick
+  float d = sdLogo(lp);
+  float fill = 1.0 - smoothstep(-0.004, 0.004, d);
+  float glow = exp(-abs(d)*20.0);
+  col = mix(col, C_WHITE, fill*0.85);
+  col += C_ORANGE*glow*(0.30 + 1.2*uLevels.w);
+  return col;
+}
+
+/* ---------- scene 1: infinite tunnel, logo at the end ---------- */
+vec3 sceneTunnel(vec2 p){
+  float t = uTime;
+  float r = length(p) + 1e-4;
+  float a = atan(p.y, p.x);
+  r *= 1.0 + 0.22*uLevels.x*sin(a*3.0 + t*2.0) + 0.10*uLevels.y*sin(a*7.0 - t*3.0);
+  float z = 0.30/r + t*0.9;
+  float pat = sin(z*3.0 + a*5.0)*sin(z*6.0 - a*3.0 + t*0.7);
+  vec3 col = pal(pat*0.21 + 0.5 + z*0.05);
+  col *= 0.25 + 0.75*smoothstep(0.02, 0.50, r);
+  float sx = a/6.2831853; sx = sx - floor(sx);              // spectrum painted around the walls
+  float s1 = spec(abs(sx));
+  col += C_LIGHT*s1*0.40*(1.0 - smoothstep(0.15, 0.60, r));
+  float s = 0.30*(1.0 + 0.25*uLevels.w);
+  vec2 lp = rot(-t*0.4)*p/s;
+  float d = sdLogo(lp);
+  float fade = 1.0 - smoothstep(0.10, 0.45, r);
+  float fill = 1.0 - smoothstep(-0.004, 0.004, d);
+  float glow = exp(-abs(d)*18.0);
+  col = mix(col, mix(C_ORANGE, C_WHITE, 0.35), fill*fade*0.85);
+  col += C_ORANGE*glow*fade*(0.35 + 1.4*uLevels.w);
+  return col;
+}
+
+/* ---------- scene 2: raymarched extruded logo on a grid floor ---------- */
+float mapScene(vec3 q){
+  float df = q.y + 1.25;                                   // floor plane
+  vec3 o = q - vec3(0.0, 0.18 + 0.10*sin(uTime*1.3), 0.0);
+  o.xz = rot(uTime*0.8)*o.xz;                              // spin like a coin
+  float s = 1.0/(1.0 + 0.22*uLevels.w);                     // beat scale
+  vec2 lp = o.xy*s;
+  float d2 = sdLogo(lp);
+  float h = 0.10 + 0.05*uLevels.x;                          // thickness breathes with bass
+  vec2 w = vec2(d2, abs(o.z) - h);
+  float dl = min(max(w.x, w.y), 0.0) + length(max(w, vec2(0.0)));
+  dl *= s;
+  return min(df, dl);
+}
+
+vec3 calcNormal(vec3 p){
+  vec2 e = vec2(0.003, 0.0);
+  return normalize(vec3(
+    mapScene(p + e.xyy) - mapScene(p - e.xyy),
+    mapScene(p + e.yxy) - mapScene(p - e.yxy),
+    mapScene(p + e.yyx) - mapScene(p - e.yyx)));
+}
+
+float shadow(vec3 p, vec3 L){
+  float res = 1.0, ts = 0.05;
+  for (int i = 0; i < 28; i++){
+    float h = mapScene(p + L*ts);
+    res = min(res, 10.0*h/ts);
+    if (res < 0.05 || ts > 4.0) break;
+    ts += clamp(h, 0.06, 0.5);
+  }
+  return clamp(res, 0.0, 1.0);
+}
+
+vec3 sceneLogo(vec2 p){
+  float t = uTime;
+  vec3 ro = vec3(sin(t*0.21)*3.6, 1.35 + 0.18*sin(t*0.43), cos(t*0.21)*3.6);
+  vec3 ta = vec3(0.0, 0.15, 0.0);
+  vec3 ww = normalize(ta - ro);
+  vec3 uu = normalize(cross(ww, vec3(0.0, 1.0, 0.0)));
+  vec3 vv = cross(uu, ww);
+  vec3 rd = normalize(uu*p.x + vv*p.y + ww*1.9);
+
+  vec3 sky = mix(C_DARK*0.85, C_MID, smoothstep(-0.30, 0.80, rd.y));
+  sky += C_ORANGE*pow(max(dot(rd, normalize(vec3(2.0, 2.5, 1.5))), 0.0), 5.0)*0.55;
+
+  float tt = 0.0, d = 1.0, glow = 0.0;
+  vec3 pos = ro;
+  for (int i = 0; i < 96; i++){
+    pos = ro + rd*tt;
+    d = mapScene(pos);
+    glow += exp(-abs(d)*14.0);
+    if (d < 0.001*(1.0 + 0.5*tt) || tt > 13.0) break;
+    tt += d*0.85;
+  }
+
+  vec3 col = sky;
+  if (tt < 13.0){
+    vec3 n = calcNormal(pos);
+    vec3 L  = normalize(vec3( 2.2, 3.0,  1.8));
+    vec3 L2 = normalize(vec3(-2.6, 1.2, -2.2));
+    float sh = shadow(pos + n*0.02, L);
+    float isLogo = step(0.05, abs(pos.y + 1.25));
+    // checkerboard floor with orange grid glow
+    vec2 fc = pos.xz*0.75;
+    float ch = mod(floor(fc.x) + floor(fc.y), 2.0);
+    vec3 floorCol = mix(C_MID*0.75, C_GREY*0.42, ch);
+    vec2 gf = abs(fract(fc) - 0.5);
+    float line = 1.0 - smoothstep(0.0, 0.06, 0.5 - max(gf.x, gf.y));
+    floorCol += C_ORANGE*line*line*(0.35 + 0.55*uLevels.y);
+    // orange logo with a rim of white, like a badge
+    float rim = pow(1.0 - max(dot(n, -rd), 0.0), 2.5);
+    vec3 logoCol = mix(C_ORANGE, C_WHITE, rim*0.85);
+    vec3 alb = mix(floorCol, logoCol, isLogo);
+    float dif  = max(dot(n, L),  0.0);
+    float dif2 = max(dot(n, L2), 0.0);
+    float sp = pow(max(dot(n, normalize(L - rd)), 0.0), mix(28.0, 60.0, isLogo));
+    col  = alb*(0.34 + 1.15*dif*sh + 0.40*dif2);
+    col += C_WHITE*sp*(sh*0.85 + 0.15);
+    col += C_ORANGE*isLogo*(0.12 + uLevels.w*0.35);
+    col  = mix(col, sky, 1.0 - exp(-tt*tt*0.010));
+  }
+  col += C_ORANGE*glow*0.016*(0.6 + uLevels.w);            // orange halo
+  return col;
+}
+
+vec3 scenePick(int s, vec2 p){
+  if (s == 0) return scenePlasma(p);
+  if (s == 1) return sceneTunnel(p);
+  return sceneLogo(p);
+}
+
+void main(){
+  vec2 suv0 = gl_FragCoord.xy/uRes;
+  vec2 cc = suv0 - 0.5;
+  vec2 suv = suv0 + cc*dot(cc, cc)*0.05;                   // gentle CRT curvature
+  vec2 p = suv - 0.5;
+  p.x *= uRes.x/uRes.y;
+
+  vec3 col = mix(scenePick(int(uScene.x + 0.5), p),
+                 scenePick(int(uScene.y + 0.5), p), uScene.z);
+
+  // ---- spectrum bars along the bottom ----
+  if (suv.y < 0.16){
+    float N = 44.0;
+    float bi = floor(clamp(suv.x, 0.0, 0.999)*N);
+    float f = spec((bi + 0.5)/N*0.6);
+    float h = 0.02 + f*0.11;
+    if (suv.y < h){
+      vec3 barc = mix(C_MID, C_ORANGE, bi/N);
+      col = mix(col, barc*(0.35 + 0.9*f), 0.80);
+    }
+    col += C_WHITE*(1.0 - smoothstep(0.0, 0.007, abs(suv.y - h)))*0.30;
+  }
+
+  // ---- slanted greetings scroller ----
+  float yy = (suv.y - 0.175)/0.13;
+  if (yy > 0.0 && yy < 1.0){
+    // sample the strip so its horizontal texel scale matches the vertical one
+    // (uTextSz.y texture px spread over 0.13*uRes.y): glyphs stay 1:1 on any window;
+    // slant, scroll speed and shadow offset are in texture px, so they are
+    // invariant no matter how wide the strip turned out to be
+    float uspan = uRes.x*uTextSz.y/(uTextSz.x*0.13*uRes.y);
+    float x = suv.x*uspan + (20.0/uTextSz.x)*(yy - 0.5) + uTime*(164.0/uTextSz.x);
+    vec4 tx = texture2D(uText, vec2(x, yy));
+    vec4 sh = texture2D(uText, vec2(x + 10.0/uTextSz.x, yy - 0.03));
+    col = mix(col, C_DARK, sh.a*0.75);
+    col = mix(col, mix(C_ORANGE, C_WHITE, 0.30 + 0.62*yy), tx.a*0.92);
+  }
+
+  // ---- grade: scanlines, vignette, grain, kick flash ----
+  col *= 0.88 + 0.12*sin(suv.y*uRes.y*3.14159);
+  vec2 sv = clamp(suv, 0.002, 0.998);
+  float vig = pow(16.0*sv.x*(1.0 - sv.x)*sv.y*(1.0 - sv.y), 0.35);
+  col *= clamp(vig, 0.0, 1.0);
+  float gr = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233)) + uTime*13.0)*43758.5453);
+  col += (gr - 0.5)*0.03;
+  col += C_ORANGE*uLevels.w*0.045;
+
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+/* ============================================================
+   WebGL plumbing
+   ============================================================ */
+const canvas = $("#gl");
+const gl = canvas.getContext("webgl", {antialias:false, alpha:false, powerPreference:"high-performance"})
+        || canvas.getContext("experimental-webgl");
+if (!gl){ $("#err").style.display = "flex"; return; }
+
+function compile(type, src){
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
+    console.error("SHADER ERROR:", gl.getShaderInfoLog(s));
+  return s;
+}
+const prog = gl.createProgram();
+gl.attachShader(prog, compile(gl.VERTEX_SHADER, VS));
+gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FS));
+gl.linkProgram(prog);
+if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) console.error("LINK ERROR:", gl.getProgramInfoLog(prog));
+gl.useProgram(prog);
+
+const buf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+const aPos = gl.getAttribLocation(prog, "aPos");
+gl.enableVertexAttribArray(aPos);
+gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+const U = {};
+["uRes","uTime","uLevels","uScene","uAudio","uText","uTextSz"].forEach(n => U[n] = gl.getUniformLocation(prog, n));
+
+// --- audio spectrum texture: 256x1 luminance, bytes ---
+const spec = new Uint8Array(256);
+const texA = gl.createTexture();
+gl.activeTexture(gl.TEXTURE0);
+gl.bindTexture(gl.TEXTURE_2D, texA);
+gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, 256, 1, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, spec);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+gl.uniform1i(U.uAudio, 0);
+
+// --- greetings scroller texture: as wide a POT strip as the message needs ---
+const MESSAGE = "UBUNTU × AUDIO — A ONE-FILE SHADER DEMO ··· 90s DEMOSCENE SPIRIT IN CANONICAL COLOURS " +
+                "··· GREETINGS FLY OUT TO: FUTURE CREW · ASSEMBLY · REVISION · SOLAR " +
+                "··· DROP YOUR OWN TUNE OR HIT THE MIC ··· ORANGE & AUBERGINE FOREVER ··· ";
+const tcv = document.createElement("canvas");
+tcv.height = 128;
+const tx2d = tcv.getContext("2d");
+const tfont = px => "bold " + px + 'px Ubuntu, "DejaVu Sans", Arial, sans-serif';
+tx2d.font = tfont(88);                                    // target size: fill the band
+const w88 = tx2d.measureText(MESSAGE).width;
+const maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+let stripW = 2048;
+while (stripW < w88 + 232 && stripW*2 <= maxTex) stripW *= 2;  // POT ladder (REPEAT needs POT)
+tcv.width = stripW;
+tx2d.font = tfont(Math.max(16, Math.floor(88*Math.min(1, (stripW - 232)/w88))));
+tx2d.textBaseline = "middle";
+tx2d.fillStyle = "#ffffff";
+tx2d.fillText(MESSAGE, 16, 64);
+const texT = gl.createTexture();
+gl.activeTexture(gl.TEXTURE1);
+gl.bindTexture(gl.TEXTURE_2D, texT);
+// yy=0 sits at the band BOTTOM (gl_FragCoord.y is 0 at the screen bottom), so
+// flip the upload: V=0 becomes the canvas bottom row -> glyphs land upright
+gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, tcv);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+gl.uniform1i(U.uText, 1);
+gl.uniform2f(U.uTextSz, stripW, 128);
+
+function resize(){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.max(1, Math.floor(innerWidth*dpr));
+  const h = Math.max(1, Math.floor(innerHeight*dpr));
+  if (canvas.width !== w || canvas.height !== h){
+    canvas.width = w; canvas.height = h;
+    gl.viewport(0, 0, w, h);
+  }
+}
+addEventListener("resize", resize);
+resize();
+
+/* ============================================================
+   audio — built-in 122.5 bpm chiptune / mic / file, one analyser
+   ============================================================ */
+let AC = null, analyser = null, masterG = null, comp = null, synthBus = null, delaySend = null, noiseBuf = null;
+let mode = "none", schedTimer = null, step = 0, nextT = 0;
+let micStream = null, micSrc = null, fileSrc = null, fileGain = null, muted = false;
+const BPM = 122.5, SPB = 60/BPM/4;                     // seconds per sixteenth
+const mtof = m => 440*Math.pow(2, (m - 69)/12);
+
+function initAudio(){
+  if (AC) return;
+  AC = new (window.AudioContext || window.webkitAudioContext)();
+  analyser = AC.createAnalyser();
+  analyser.fftSize = 1024;
+  analyser.smoothingTimeConstant = 0.6;
+  masterG = AC.createGain(); masterG.gain.value = muted ? 0 : 0.9;
+  comp = AC.createDynamicsCompressor();
+  comp.threshold.value = -16; comp.knee.value = 18; comp.ratio.value = 4;
+  synthBus = AC.createGain(); synthBus.gain.value = 0.8;
+  synthBus.connect(masterG);
+  masterG.connect(comp);
+  comp.connect(AC.destination);
+  comp.connect(analyser);                             // tap for the visuals
+  // dotted-8th feedback delay for the lead
+  delaySend = AC.createGain(); delaySend.gain.value = 0.85;
+  const dl = AC.createDelay(1.0); dl.delayTime.value = SPB*3;
+  const fb = AC.createGain(); fb.gain.value = 0.32;
+  const dlp = AC.createBiquadFilter(); dlp.type = "lowpass"; dlp.frequency.value = 1500;
+  delaySend.connect(dl); dl.connect(dlp); dlp.connect(fb); fb.connect(dl); dlp.connect(synthBus);
+  // shared noise buffer
+  noiseBuf = AC.createBuffer(1, AC.sampleRate, AC.sampleRate);
+  const ch = noiseBuf.getChannelData(0);
+  for (let i = 0; i < ch.length; i++) ch[i] = Math.random()*2 - 1;
+}
+
+function kick(t){
+  const o = AC.createOscillator(); o.type = "sine";
+  o.frequency.setValueAtTime(165, t);
+  o.frequency.exponentialRampToValueAtTime(43, t + 0.12);
+  const g = AC.createGain();
+  g.gain.setValueAtTime(0.9, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+  o.connect(g); g.connect(synthBus); o.start(t); o.stop(t + 0.3);
+}
+function noiseHit(t, type, freq, dur, gain){
+  const s = AC.createBufferSource(); s.buffer = noiseBuf;
+  const f = AC.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = 0.9;
+  const g = AC.createGain();
+  g.gain.setValueAtTime(gain, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  s.connect(f); f.connect(g); g.connect(synthBus);
+  s.start(t, Math.random()*0.5); s.stop(t + dur + 0.02);
+}
+function snare(t){
+  noiseHit(t, "bandpass", 1800, 0.16, 0.5);
+  const o = AC.createOscillator(); o.type = "triangle";
+  o.frequency.setValueAtTime(210, t);
+  o.frequency.exponentialRampToValueAtTime(120, t + 0.08);
+  const g = AC.createGain();
+  g.gain.setValueAtTime(0.22, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+  o.connect(g); g.connect(synthBus); o.start(t); o.stop(t + 0.12);
+}
+function hat(t, open){ noiseHit(t, "highpass", 8500, open ? 0.24 : 0.045, open ? 0.26 : 0.17); }
+function bassN(t, m){
+  const o = AC.createOscillator(); o.type = "square"; o.frequency.value = mtof(m);
+  const f = AC.createBiquadFilter(); f.type = "lowpass"; f.Q.value = 1.1;
+  f.frequency.setValueAtTime(1000, t);
+  f.frequency.exponentialRampToValueAtTime(320, t + 0.1);
+  const g = AC.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.4, t + 0.006);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.13);
+  o.connect(f); f.connect(g); g.connect(synthBus); o.start(t); o.stop(t + 0.15);
+}
+function leadN(t, m){
+  const f0 = mtof(m);
+  for (const det of [-5, 5]){
+    const o = AC.createOscillator(); o.type = "square";
+    o.frequency.value = f0*Math.pow(2, det/1200);
+    const f = AC.createBiquadFilter(); f.type = "lowpass"; f.Q.value = 1.0;
+    f.frequency.setValueAtTime(3400, t);
+    f.frequency.exponentialRampToValueAtTime(900, t + 0.17);
+    const g = AC.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.11, t + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.19);
+    o.connect(f); f.connect(g); g.connect(synthBus); g.connect(delaySend);
+    o.start(t); o.stop(t + 0.22);
+  }
+}
+function stab(t, bar){
+  const root = [45, 41, 43, 43][bar];
+  const iv = (bar === 1 || bar === 2) ? [0, 4, 7] : [0, 3, 7];
+  for (const k of iv){
+    const o = AC.createOscillator(); o.type = "sawtooth"; o.frequency.value = mtof(root + k);
+    const f = AC.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 1300;
+    const g = AC.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.08, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.30);
+    o.connect(f); f.connect(g); g.connect(synthBus); o.start(t); o.stop(t + 0.32);
+  }
+}
+
+// 4 bars: Am — F — G — Am run
+const ROOTS = [33, 29, 31, 31];
+const LEAD = [
+  69,0,72,0, 76,0,72,0,  65,0,69,0, 72,0,69,0,
+  67,0,71,0, 74,0,71,0,  81,0,79,0, 76,0,74,0,
+  74,0,72,0, 69,0,67,0,  71,0,69,0, 65,0,64,0,
+  76,0,74,0, 71,0,69,0,  72,0,74,0, 76,0,79,0
+];
+function playStep(i, t){
+  const bar = (i >> 4) & 3;
+  if (i % 4  === 0) kick(t);
+  if (i % 8  === 4) snare(t);
+  if (i % 2  === 1) hat(t, false);
+  if (i % 16 === 14) hat(t, true);
+  if (i % 2 === 0)  bassN(t, ROOTS[bar] + ((i % 8 === 2) ? 12 : 0));
+  const n = LEAD[i]; if (n) leadN(t, n);
+  if (i % 16 === 0)  stab(t, bar);
+}
+function scheduler(){
+  while (nextT < AC.currentTime + 0.15){
+    playStep(step, nextT);
+    step = (step + 1) % 64;
+    nextT += SPB;
+  }
+}
+
+function stopOthers(){
+  if (schedTimer){ clearInterval(schedTimer); schedTimer = null; }
+  if (fileSrc){ try { fileSrc.stop(); } catch(e){} try { fileSrc.disconnect(); } catch(e){} fileSrc = null; }
+  if (micSrc){ try { micSrc.disconnect(); } catch(e){} micSrc = null; }
+  if (micStream){ micStream.getTracks().forEach(x => x.stop()); micStream = null; }
+  mode = "none";
+}
+async function startSynth(){
+  initAudio();
+  await AC.resume();
+  stopOthers();
+  mode = "synth"; step = 0; nextT = AC.currentTime + 0.1;
+  schedTimer = setInterval(scheduler, 25);
+  scheduler();
+  setMode("muz ▸ built-in chiptune · 122.5 bpm · Am-F-G-Am");
+}
+async function useMic(){
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false, noiseSuppression:false}});
+    initAudio(); await AC.resume(); stopOthers();
+    micStream = s;
+    micSrc = AC.createMediaStreamSource(s);
+    micSrc.connect(analyser);                       // analyser is a tap: no speakers, no feedback
+    mode = "mic";
+    setMode("muz ▸ microphone (live)");
+  } catch (e){
+    setMode("mic unavailable — needs https/localhost + permission");
+  }
+}
+async function loadFile(file){
+  try {
+    initAudio(); await AC.resume(); stopOthers();
+    const buf = await AC.decodeAudioData(await file.arrayBuffer());
+    fileSrc = AC.createBufferSource(); fileSrc.buffer = buf; fileSrc.loop = true;
+    fileGain = AC.createGain(); fileGain.gain.value = muted ? 0 : 0.9;
+    fileSrc.connect(fileGain); fileGain.connect(AC.destination);
+    fileSrc.connect(analyser);
+    fileSrc.start();
+    mode = "file";
+    setMode("muz ▸ " + file.name);
+  } catch (e){
+    setMode("could not decode that file :(");
+  }
+}
+function toggleMute(){
+  muted = !muted;
+  const v = muted ? 0 : 0.9;
+  if (masterG) masterG.gain.value = v;
+  if (fileGain) fileGain.gain.value = v;
+  $("#btnMute").textContent = muted ? "🔇" : "🔊";
+}
+
+/* ============================================================
+   ui wiring
+   ============================================================ */
+const overlay = $("#overlay"), hud = $("#hud"), modeEl = $("#mode");
+let started = false, hudTimer = null;
+function setMode(s){ modeEl.textContent = s; modeEl.classList.toggle("on", !!s); }
+function showHud(){
+  hud.classList.add("on");
+  clearTimeout(hudTimer);
+  hudTimer = setTimeout(() => { if (started) hud.classList.remove("on"); }, 2600);
+}
+function begin(){
+  started = true;
+  overlay.classList.add("gone");
+  modeEl.classList.add("on");
+  showHud();
+}
+$("#btnStart").addEventListener("click", async () => { await startSynth(); begin(); });
+async function micFlow(){ await useMic(); begin(); }
+$("#btnMic").addEventListener("click", micFlow);
+$("#btnMic2").addEventListener("click", micFlow);
+function fileFlow(){ if (!started) begin(); $("#file").click(); }
+$("#btnFile").addEventListener("click", fileFlow);
+$("#btnFile2").addEventListener("click", fileFlow);
+$("#file").addEventListener("change", e => {
+  const f = e.target.files[0];
+  if (f) loadFile(f).then(() => { if (!started) begin(); });
+  e.target.value = "";
+});
+$("#btnMute").addEventListener("click", toggleMute);
+$("#btnFull").addEventListener("click", () => {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen();
+});
+addEventListener("keydown", e => {
+  if (e.key === "m" || e.key === "M") micFlow();
+  if (e.key === "o" || e.key === "O") $("#file").click();
+  if (e.key === "f" || e.key === "F") $("#btnFull").click();
+  if (e.key === "Escape") overlay.classList.toggle("gone");
+});
+addEventListener("mousemove", () => { if (started) showHud(); });
+
+/* ============================================================
+   per-frame audio analysis -> uniforms -> draw
+   ============================================================ */
+let bass = 0, mid = 0, high = 0, beat = 0, beatAvg = 0.1;
+function updateAudio(t, dt){
+  const live = AC && AC.state === "running" && mode !== "none";
+  if (live){
+    analyser.getByteFrequencyData(spec);
+    let b = 0, m = 0, h = 0;
+    for (let i = 2;  i < 10;  i++) b += spec[i]; b /= (8*255);
+    for (let i = 10; i < 64;  i++) m += spec[i]; m /= (54*255);
+    for (let i = 64; i < 200; i++) h += spec[i]; h /= (136*255);
+    bass += (b - bass)*Math.min(1, dt*14);
+    mid  += (m - mid) *Math.min(1, dt*14);
+    high += (h - high)*Math.min(1, dt*20);
+    beatAvg += (b - beatAvg)*Math.min(1, dt*1.2);
+    if (b > beatAvg*1.28 + 0.04) beat = Math.min(1.2, beat + 0.9);
+  } else {
+    // silent idle: fake a groove so the intro screen still dances
+    for (let i = 0; i < 256; i++){
+      const f = i/256;
+      const v = (0.5 + 0.5*Math.sin(t*2.2 + f*22.0))*Math.exp(-f*6.0)*235;
+      spec[i] = Math.max(0, Math.min(255, v|0));
+    }
+    const k = Math.max(0, Math.sin(t*4.19));
+    beat = Math.pow(k, 14)*1.1;
+    bass = 0.30 + 0.22*k;
+    mid  = 0.24 + 0.12*Math.sin(t*1.7);
+    high = 0.18 + 0.10*Math.sin(t*2.9);
+  }
+  beat *= Math.exp(-3.2*dt);
+  window.__demoLevels = [bass, mid, high, beat, mode, AC ? AC.state : "no-audio"]; // debug hook
+}
+
+const SEG = 16, NSC = 3, LOOP = SEG*NSC;
+let tParam = NaN;
+try { tParam = parseFloat(new URLSearchParams(location.search).get("t")); } catch(e){}
+
+let lastT = performance.now();
+function frame(now){
+  const dt = Math.max(0, Math.min(0.05, (now - lastT)/1000));
+  lastT = now;
+  let t = now/1000;
+  if (isFinite(tParam) && tParam > 0) t = tParam;   // debug stills: index.html?t=23
+  updateAudio(t, dt);
+
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, texA);
+  gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 256, 1, gl.LUMINANCE, gl.UNSIGNED_BYTE, spec);
+
+  gl.uniform2f(U.uRes, canvas.width, canvas.height);
+  gl.uniform1f(U.uTime, t);
+  gl.uniform4f(U.uLevels, bass, mid, high, beat);
+
+  const tt = t % LOOP;
+  const idx = Math.floor(tt/SEG);
+  const ft = tt - idx*SEG;
+  let mx = ft > SEG - 2.5 ? (ft - (SEG - 2.5))/2.5 : 0;   // crossfade into next scene
+  mx = mx*mx*(3 - 2*mx);
+  gl.uniform3f(U.uScene, idx, (idx + 1) % NSC, mx);
+
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
