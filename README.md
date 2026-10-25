@@ -1,7 +1,5 @@
 # ubuntu × audio — a 90s-style shader demo
 
-![screenshot](screenshot.png)
-
 A single self-contained HTML file (`index.html`) — no build step, no dependencies.
 A WebGL fragment-shader demo in the spirit of the 90s demoscene, dressed in the
 Canonical / Ubuntu colour scheme, reacting to whatever you feed it: the built-in
@@ -10,6 +8,7 @@ chiptune, your microphone, or any audio file you drop on it.
 ## Run it
 
 ```sh
+cd /project/ubuntu-audio-demo
 python3 -m http.server 8000
 # open http://localhost:8000
 ```
@@ -67,15 +66,14 @@ CRT grade (curvature, scanlines, vignette, grain, kick flash).
 
 ## Notes
 
+- the Ubuntu typeface is embedded as base64 WOFF2 (Ubuntu Font Licence 1.0 —
+  see [LICENSE-UbuntuFont](LICENSE-UbuntuFont)), so the scroller and the UI
+  render in Ubuntu even on machines without the font installed
 - WebGL 1.0 / GLSL ES 1.00 — runs anywhere, including software rasterizers
   (verified with headless Chromium on SwiftShader)
 - debug stills: `index.html?t=<seconds>` freezes the timeline (e.g. `?t=36`
   for the raymarch scene)
 - the mark is a hand-made procedural approximation of the circle of friends,
   drawn as an SDF for fun; *Ubuntu and Canonical are trademarks of Canonical Ltd.*
-
-## License
-
-Apache-2.0 — see [LICENSE](LICENSE).
 - timing knobs: `SEG` (scene length), `BPM`, and the patterns
   (`ROOTS`, `LEAD`) are plain arrays at the top of the audio section

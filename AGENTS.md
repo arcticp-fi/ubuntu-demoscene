@@ -32,10 +32,13 @@ microphone and file input.
 - Audio: `AnalyserNode` → 256-bin spectrum → 256×1 LUMINANCE texture (`uAudio`)
   → sampled per pixel; smoothed `bass/mid/high` + kick detector feed `uLevels`.
   With no audio playing, a synthetic groove feeds the same uniforms.
-- Greetings scroller: `MESSAGE` baked once into a 2D canvas strip (height 128,
+- Greetings scroller: `MESSAGE` baked into a 2D canvas strip (height 128,
   width = POT ladder up to `MAX_TEXTURE_SIZE`, font shrunk to fit), uploaded as
   `uText` with `REPEAT` wrap. The shader samples it in a band and `uTextSz`
-  carries the strip dimensions.
+  carries the strip dimensions. The Ubuntu typeface is embedded as base64
+  `@font-face` (UFL 1.0, LICENSE-UbuntuFont); the bake runs immediately with
+  whatever face is ready and re-bakes with real metrics once
+  `document.fonts.load` resolves.
 
 ## Gotchas — read before touching the shader or scroller
 
@@ -63,11 +66,15 @@ microphone and file input.
   `--force-device-scale-factor` actually applies (puppeteer otherwise pins
   DPR=1 and HiDPI is never tested). Test DPR 1 and 2 and a short-wide window
   (~1394×269) — that is a real viewing layout.
-- **Headless boxes may have zero fonts installed.** `measureText` then returns
-  0 and `fillText` draws *nothing* — the scroller is silently invisible and
-  brightness-coverage checks still pass. Install a TTF (e.g. DejaVu from the
-  gnome snap) into `~/.local/share/fonts` first, then assert the strip has
-  opaque pixels *and* read the rendered band.
+- **Fonts:** the Ubuntu face is embedded, but headless boxes may still have
+  zero *system* fonts — on such machines even the embedded webfont fails to
+  load (faces stuck in `status: "error"`) and the scroller bakes empty.
+  Drop a TTF into `~/.local/share/fonts` (e.g. DejaVu from the gnome snap),
+  wait past `document.fonts.load` (networkidle0 + ~1 s), then assert the strip
+  has opaque pixels *and* read the rendered band.
+- `bakeScroller` re-binds texture unit 1 explicitly: it re-runs asynchronously
+  (font load) while the frame loop already binds the spectrum texture on
+  unit 0. Keep that binding when editing, or the re-bake corrupts `uAudio`.
 - Verify visually at `?t=0`, `?t=16`, `?t=36`: upright glyphs, subtle slant
   (~9°), 1:1 aspect, text filling the band. A partially-black desktop capture
   is usually a compositor/GPU glitch on the capturing machine, not a shader
