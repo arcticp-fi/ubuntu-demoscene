@@ -1,5 +1,7 @@
 # ubuntu × audio — a 90s-style shader demo
 
+![screenshot](screenshot.png)
+
 A single self-contained HTML file (`index.html`) — no build step, no dependencies.
 A WebGL fragment-shader demo in the spirit of the 90s demoscene, dressed in the
 Canonical / Ubuntu colour scheme, reacting to whatever you feed it: the built-in
@@ -27,6 +29,7 @@ see reacts to the analyser output.
 |---|---|
 | ▶ start | start the demo with the built-in chiptune |
 | 🎙 / `m` | switch to microphone input |
+| 🎚 mic (mic mode) | microphone input level — **auto** adapts it to the room; drag to set it yourself |
 | 🎵 / `o` | load any audio file (loops, becomes the new soundtrack) |
 | 🔊 | mute / unmute |
 | ⛶ / `f` | fullscreen |
@@ -66,6 +69,10 @@ CRT grade (curvature, scanlines, vignette, grain, kick flash).
 
 ## Notes
 
+- microphone mode has an input-level control (±20 dB) with an **auto** mode
+  (default) that adapts to loud or quiet rooms — slowly, never chasing silence,
+  so a noisy environment no longer saturates the visuals; the browser's own
+  mic AGC is disabled so the spectrum reflects the real room
 - the Ubuntu typeface is embedded as base64 WOFF2 (Ubuntu Font Licence 1.0 —
   see [LICENSE-UbuntuFont](LICENSE-UbuntuFont)), so the scroller and the UI
   render in Ubuntu even on machines without the font installed

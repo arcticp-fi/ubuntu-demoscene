@@ -69,10 +69,22 @@
     font:600 11px "Ubuntu Mono",ui-monospace,monospace;
   }
   #hud{
-    position:fixed;right:16px;bottom:12px;z-index:9;display:flex;gap:8px;
+    position:fixed;right:16px;bottom:12px;z-index:9;display:flex;gap:8px;align-items:center;
     opacity:0;transition:opacity .35s;pointer-events:none;
   }
   #hud.on{opacity:1;pointer-events:auto}
+  #micctl{display:none;align-items:center;gap:9px;padding:8px 12px;border-radius:4px;
+    background:rgba(44,0,30,.62);box-shadow:inset 0 0 0 1px rgba(247,247,247,.22)}
+  #micctl.on{display:flex}
+  #micctl .lbl{font:500 10px "Ubuntu Mono",ui-monospace,monospace;letter-spacing:.14em;color:rgba(247,247,247,.72)}
+  #lvldb{font:500 10px "Ubuntu Mono",ui-monospace,monospace;color:var(--orange);min-width:34px;text-align:right}
+  #lvl{-webkit-appearance:none;appearance:none;width:110px;height:4px;cursor:pointer}
+  #lvl::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:rgba(247,247,247,.25)}
+  #lvl::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:13px;height:13px;border-radius:50%;
+    margin-top:-4.5px;background:var(--orange);border:0;box-shadow:0 1px 5px rgba(44,0,30,.7)}
+  #lvl::-moz-range-track{height:4px;border-radius:2px;background:rgba(247,247,247,.25)}
+  #lvl::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:var(--orange);border:0}
+  .btn.small.on{background:var(--orange);box-shadow:none}
   #err{
     position:fixed;inset:0;z-index:20;display:none;align-items:center;justify-content:center;
     background:var(--dark);padding:24px;text-align:center;
@@ -107,6 +119,12 @@
 </div>
 
 <div id="hud">
+  <span id="micctl">
+    <span class="lbl">mic</span>
+    <input type="range" id="lvl" min="-20" max="20" step="1" value="0" title="microphone input level (dB)">
+    <span id="lvldb">0dB</span>
+    <button class="btn ghost small on" id="btnAuto" title="auto-adapt the level to the room">auto</button>
+  </span>
   <button class="btn ghost small" id="btnMic2" title="use microphone (m)">🎙</button>
   <button class="btn ghost small" id="btnFile2" title="load a tune (o)">🎵</button>
   <button class="btn ghost small" id="btnMute" title="mute">🔊</button>
@@ -473,6 +491,9 @@ resize();
 let AC = null, analyser = null, masterG = null, comp = null, synthBus = null, delaySend = null, noiseBuf = null;
 let mode = "none", schedTimer = null, step = 0, nextT = 0;
 let micStream = null, micSrc = null, fileSrc = null, fileGain = null, muted = false;
+let micGain = null, micDb = 0, micAutoOn = true, agcLvl = 0, micDbShown = NaN;
+const db2lin = db => Math.pow(10, db/20);
+try { micDb = Math.max(-20, Math.min(20, +localStorage.uaxdb || 0)); micAutoOn = localStorage.uaxauto !== "0"; } catch(e){}
 const BPM = 122.5, SPB = 60/BPM/4;                     // seconds per sixteenth
 const mtof = m => 440*Math.pow(2, (m - 69)/12);
 
@@ -482,6 +503,7 @@ function initAudio(){
   analyser = AC.createAnalyser();
   analyser.fftSize = 1024;
   analyser.smoothingTimeConstant = 0.6;
+  micGain = AC.createGain(); micGain.gain.value = db2lin(micDb);
   masterG = AC.createGain(); masterG.gain.value = muted ? 0 : 0.9;
   comp = AC.createDynamicsCompressor();
   comp.threshold.value = -16; comp.knee.value = 18; comp.ratio.value = 4;
@@ -602,7 +624,9 @@ function stopOthers(){
   if (schedTimer){ clearInterval(schedTimer); schedTimer = null; }
   if (fileSrc){ try { fileSrc.stop(); } catch(e){} try { fileSrc.disconnect(); } catch(e){} fileSrc = null; }
   if (micSrc){ try { micSrc.disconnect(); } catch(e){} micSrc = null; }
+  if (micGain){ try { micGain.disconnect(); } catch(e){} }
   if (micStream){ micStream.getTracks().forEach(x => x.stop()); micStream = null; }
+  micctl.classList.remove("on");
   mode = "none";
 }
 async function startSynth(){
@@ -616,12 +640,17 @@ async function startSynth(){
 }
 async function useMic(){
   try {
-    const s = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false, noiseSuppression:false}});
+    const s = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false, noiseSuppression:false, autoGainControl:false}});
     initAudio(); await AC.resume(); stopOthers();
     micStream = s;
     micSrc = AC.createMediaStreamSource(s);
-    micSrc.connect(analyser);                       // analyser is a tap: no speakers, no feedback
+    micGain.gain.value = db2lin(micDb);
+    micSrc.connect(micGain);                        // level control before the analyser tap
+    micGain.connect(analyser);                      // analyser is a tap: no speakers, no feedback
+    agcLvl = 0;
     mode = "mic";
+    micctl.classList.add("on");
+    syncMicUi();
     setMode("muz ▸ microphone (live)");
   } catch (e){
     setMode("mic unavailable — needs https/localhost + permission");
@@ -654,7 +683,25 @@ function toggleMute(){
    ui wiring
    ============================================================ */
 const overlay = $("#overlay"), hud = $("#hud"), modeEl = $("#mode");
+const micctl = $("#micctl"), lvl = $("#lvl"), lvldb = $("#lvldb"), btnAuto = $("#btnAuto");
 let started = false, hudTimer = null;
+function applyMic(){
+  if (micGain) micGain.gain.setTargetAtTime(db2lin(micDb), AC.currentTime, 0.05);
+}
+function saveMic(){
+  try { localStorage.setItem("uaxdb", micDb); localStorage.setItem("uaxauto", micAutoOn ? "1" : "0"); } catch(e){}
+}
+function syncMicUi(){
+  lvl.value = Math.round(micDb);
+  lvldb.textContent = Math.round(micDb) + "dB";
+  btnAuto.classList.toggle("on", micAutoOn);
+}
+lvl.addEventListener("input", () => {
+  micAutoOn = false;                                 // dragging is a manual override
+  micDb = Math.max(-20, Math.min(20, +lvl.value));
+  applyMic(); saveMic(); syncMicUi();
+});
+btnAuto.addEventListener("click", () => { micAutoOn = !micAutoOn; agcLvl = 0; saveMic(); syncMicUi(); });
 function setMode(s){ modeEl.textContent = s; modeEl.classList.toggle("on", !!s); }
 function showHud(){
   hud.classList.add("on");
@@ -709,6 +756,18 @@ function updateAudio(t, dt){
     high += (h - high)*Math.min(1, dt*20);
     beatAvg += (b - beatAvg)*Math.min(1, dt*1.2);
     if (b > beatAvg*1.28 + 0.04) beat = Math.min(1.2, beat + 0.9);
+    if (mode === "mic"){
+      // adapt the mic level so loud rooms don't saturate the visuals and quiet
+      // ones don't leave them asleep: chase a healthy average slowly (≤8 dB/s),
+      // never chase silence (that would just crank the noise floor), ±20 dB max
+      const loud = 0.6*bass + 0.3*mid + 0.1*high;
+      agcLvl += (loud - agcLvl)*Math.min(1, dt*0.7);
+      if (micAutoOn && agcLvl > 0.02){
+        const need = 20*Math.log10(0.32/Math.max(agcLvl, 1e-4));
+        micDb = Math.max(-20, Math.min(20, micDb + Math.max(-8*dt, Math.min(8*dt, need*dt/1.5))));
+        if (Math.abs(micDb - micDbShown) >= 1){ micDbShown = micDb; applyMic(); syncMicUi(); }
+      }
+    }
   } else {
     // silent idle: fake a groove so the intro screen still dances
     for (let i = 0; i < 256; i++){
@@ -723,7 +782,7 @@ function updateAudio(t, dt){
     high = 0.18 + 0.10*Math.sin(t*2.9);
   }
   beat *= Math.exp(-3.2*dt);
-  window.__demoLevels = [bass, mid, high, beat, mode, AC ? AC.state : "no-audio"]; // debug hook
+  window.__demoLevels = [bass, mid, high, beat, mode, AC ? AC.state : "no-audio", +micDb.toFixed(1), micAutoOn]; // debug hook
 }
 
 const SEG = 16, NSC = 3, LOOP = SEG*NSC;

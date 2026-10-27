@@ -32,6 +32,12 @@ microphone and file input.
 - Audio: `AnalyserNode` → 256-bin spectrum → 256×1 LUMINANCE texture (`uAudio`)
   → sampled per pixel; smoothed `bass/mid/high` + kick detector feed `uLevels`.
   With no audio playing, a synthetic groove feeds the same uniforms.
+- Microphone level: `micSrc → micGain → analyser`, a ±20 dB slider in the HUD
+  (mic mode only) plus an adaptive mode (default, `micAutoOn`) that chases a
+  0.32 loudness target at ≤8 dB/s, gated above the noise floor so silence
+  never cranks the gain. Level and auto flag persist in localStorage
+  (`uaxdb`, `uaxauto`); Chrome's `autoGainControl` is disabled in getUserMedia.
+  `window.__demoLevels` exposes micDb / auto in slots 6/7.
 - Greetings scroller: `MESSAGE` baked into a 2D canvas strip (height 128,
   width = POT ladder up to `MAX_TEXTURE_SIZE`, font shrunk to fit), uploaded as
   `uText` with `REPEAT` wrap. The shader samples it in a band and `uTextSz`
@@ -81,3 +87,8 @@ microphone and file input.
   bug — reproduce headlessly before "fixing" one.
 - Snap-confined Chromium cannot run headless on this machine (D-Bus AppArmor
   fatal); that is why the standalone `chrome-headless-shell` zip is used.
+- A tmp cleaner periodically wipes `/tmp` — a long pause costs the whole
+  toolchain. Keep chrome-headless-shell, puppeteer-core and the test scripts
+  in `~/demoscene-tools` (the demo server: `python3 -m http.server 8019` from
+  the demo directory). Mic behaviour is testable headlessly with
+  `--use-fake-device-for-media-stream --use-fake-ui-for-media-stream`.
