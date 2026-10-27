@@ -35,7 +35,7 @@ see reacts to the analyser output.
 | ⛶ / `f` | fullscreen |
 | `esc` | show / hide the intro panel |
 
-## The show (96 s loop, crossfaded every 16 s)
+## The show (112 s loop, crossfaded every 16 s)
 
 1. **plasma** — the classic sine plasma with copper bars and a glowing
    circle-of-friends logo pulsing on every kick
@@ -50,6 +50,10 @@ see reacts to the analyser output.
    starfield, the classic vector-object homage
 6. **fire** — the classic fire effect in Canonical colours — aubergine smoke,
    orange flames, white-hot heart, embers, and the kick makes it surge
+7. **the network** — a wireframe world with cities pulsing on the bass, joined
+   by one great circle of connections with bright pulses travelling between
+   them — the circle of friends at planetary scale, a nod to Ubuntu's
+   "humanity to others"
 
 Overlays: spectrum bars along the bottom, then a CRT grade (curvature,
 scanlines, vignette, grain, kick flash).

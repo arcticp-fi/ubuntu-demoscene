@@ -108,7 +108,7 @@
   </svg>
   <h1>ubuntu <span>×</span> audio</h1>
   <p>a one-file shader demo · 90s demoscene spirit · Canonical colours<br>
-     plasma · tunnel · logo · metaballs · vectors · fire — all dancing to the music</p>
+     plasma · tunnel · logo · blobs · vectors · fire · the network — all dancing to the music</p>
   <div class="row">
     <button class="btn" id="btnStart">▶ start the demo</button>
     <button class="btn ghost" id="btnMic">🎙 use microphone</button>
@@ -421,13 +421,87 @@ vec3 sceneFire(vec2 p){
   return col;
 }
 
+/* ---------- scene 6: the network — the whole world in one circle of friends ---------- */
+vec3 nodePos(int i){                                   // cities, ordered by longitude
+  if (i == 0) return vec3(-0.356,  0.758, -0.546);     // Vancouver
+  if (i == 1) return vec3(-0.150,  0.333, -0.931);     // Mexico City
+  if (i == 2) return vec3( 0.630, -0.400, -0.666);     // Sao Paulo
+  if (i == 3) return vec3( 0.622,  0.783, -0.001);     // London
+  if (i == 4) return vec3( 0.451,  0.868,  0.210);     // Helsinki
+  if (i == 5) return vec3( 0.740,  0.501,  0.449);     // Cairo
+  if (i == 6) return vec3( 0.800, -0.023,  0.599);     // Nairobi
+  if (i == 7) return vec3( 0.209,  0.224,  0.952);     // Bangalore
+  if (i == 8) return vec3(-0.474,  0.423,  0.772);     // Taipei
+  return vec3(-0.728, -0.557,  0.400);                 // Sydney
+}
+vec3 sceneGlobe(vec2 p){
+  float t = uTime;
+  vec3 ro = vec3(sin(t*0.05)*0.6, 0.25*sin(t*0.037), -3.0);
+  vec3 rd = normalize(vec3(p, 1.6));
+  vec3 col = C_DARK*0.5 + C_MID*0.10*exp(-dot(p, p)*1.4);
+  {   // sparse starfield
+    vec2 su = rd.xy/(abs(rd.z) + 0.35)*7.0;
+    float h = fract(sin(dot(floor(su), vec2(12.9898, 78.233)))*43758.5453);
+    vec2 spos = vec2(fract(h*7.31), fract(h*13.37)) - 0.5;
+    float star = h > 0.95 ? 1.0 - smoothstep(0.0, 0.08, length(fract(su) - 0.5 - spos*0.6)) : 0.0;
+    col += C_WHITE*star*(0.15 + 0.25*sin(t*2.0 + h*40.0))*smoothstep(0.0, 0.4, rd.z);
+  }
+  float spin = t*0.20;
+  float tilt = 0.35 + 0.04*sin(t*0.30) + 0.03*uLevels.w;
+  float b = dot(ro, rd);
+  float hh = b*b - dot(ro, ro) + 1.0;                  // ray vs unit sphere at the origin
+  if (hh > 0.0){
+    vec3 q = ro + rd*(-b - sqrt(hh));                  // surface point, |q| = 1
+    vec3 g = q;                                        // into slowly spinning globe space
+    g.xz = rot(-spin)*g.xz;
+    g.yz = rot(tilt)*g.yz;
+    float lam = max(dot(q, normalize(vec3(-0.35, 0.55, -0.75))), 0.0);
+    col = mix(col, mix(C_DARK*0.9, C_MID*0.7, 0.2 + 0.8*lam), 1.0);
+    vec2 sph = vec2(atan(g.z, g.x), asin(clamp(g.y, -1.0, 1.0)));   // 30-degree graticule
+    float mD = abs(fract(sph.x*1.9099 + 0.5) - 0.5)*0.5236;
+    float pD = abs(fract(sph.y*1.9099 + 0.5) - 0.5)*0.5236;
+    col += C_LIGHT*exp(-min(mD, pD)*30.0)*0.38;
+    for (int i = 0; i < 10; i++){                      // cities, glowing with the bass
+      vec3 v = nodePos(i);
+      vec3 w = v;
+      w.yz = rot(-tilt)*w.yz;                          // out to world space for the facing test
+      w.xz = rot(spin)*w.xz;
+      float face = smoothstep(0.97, 1.04, dot(w, ro));
+      float d = length(g - v);
+      col += mix(C_ORANGE, C_WHITE, 0.35)*face*(exp(-d*d*2200.0) + 0.30*exp(-d*d*300.0))
+             *(0.75 + 0.8*uLevels.x);
+    }
+    for (int i = 0; i < 14; i++){                      // the circle: ring + cross links
+      int ia = i < 10 ? i : (i == 10 ? 3 : (i == 11 ? 1 : (i == 12 ? 2 : 0)));
+      int ib = i < 10 ? (i < 9 ? i + 1 : 0) : (i == 10 ? 7 : (i == 11 ? 8 : (i == 12 ? 9 : 6)));
+      vec3 a = nodePos(ia), b2 = nodePos(ib);
+      vec3 nrm = normalize(cross(a, b2));
+      float ang = acos(clamp(dot(a, b2), -1.0, 1.0));
+      vec3 mid = normalize(a + b2);
+      float within = smoothstep(cos(ang*0.5), cos(ang*0.5) + 0.05, dot(g, mid));
+      float dC = abs(dot(g, nrm));
+      col += C_ORANGE*exp(-dC*dC*2500.0)*within*(0.90 + 0.80*uLevels.y + 1.20*uLevels.w);
+      float u = fract(t*(0.05 + 0.017*fract(float(i)*0.73 + 0.31)) + float(i)*0.618);
+      u = mod(float(i), 2.0) > 0.5 ? 1.0 - u : u;      // alternate direction
+      vec3 pq = (a*sin((1.0 - u)*ang) + b2*sin(u*ang))/max(sin(ang), 1e-3);
+      float pd = length(g - pq);
+      col += mix(C_ORANGE, C_WHITE, 0.55)*exp(-pd*pd*2600.0)*within*(0.90 + 1.5*uLevels.w);
+    }
+    col += C_ORANGE*exp(-hh*30.0)*0.20;                // rim of the atmosphere
+  } else {
+    col += (C_ORANGE*0.6 + C_LIGHT*0.3)*exp(hh*22.0)*0.45*(0.7 + 0.5*uLevels.x);
+  }
+  return col;
+}
+
 vec3 scenePick(int s, vec2 p){
   if (s == 0) return scenePlasma(p);
   if (s == 1) return sceneTunnel(p);
   if (s == 2) return sceneLogo(p);
   if (s == 3) return sceneBlobs(p);
   if (s == 4) return sceneWire(p);
-  return sceneFire(p);
+  if (s == 5) return sceneFire(p);
+  return sceneGlobe(p);
 }
 
 void main(){
@@ -824,7 +898,7 @@ function updateAudio(t, dt){
   window.__demoLevels = [bass, mid, high, beat, mode, AC ? AC.state : "no-audio", +micDb.toFixed(1), micAutoOn]; // debug hook
 }
 
-const SEG = 16, NSC = 6, LOOP = SEG*NSC;
+const SEG = 16, NSC = 7, LOOP = SEG*NSC;
 let tParam = NaN;
 try { tParam = parseFloat(new URLSearchParams(location.search).get("t")); } catch(e){}
 

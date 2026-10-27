@@ -26,9 +26,10 @@ on the show — it was removed on purpose; keep the canvas text-free.
 
 ## How it works
 
-- One full-screen fragment shader; the timeline loops through 6 scenes of
+- One full-screen fragment shader; the timeline loops through 7 scenes of
   `SEG = 16` s each (plasma, tunnel, raymarched logo, metaballs, wireframe
-  vectors, fire), crossfading over the last 2.5 s. `uTime` drives everything.
+  vectors, fire, network globe), crossfading over the last 2.5 s. `uTime`
+  drives everything.
 - **Debug stills: `index.html?t=<seconds>`** freezes the timeline — the way to
   check a specific scene deterministically (e.g. `?t=36` for the raymarch scene).
 - Audio: `AnalyserNode` → 256-bin spectrum → 256×1 LUMINANCE texture (`uAudio`)
@@ -59,7 +60,7 @@ on the show — it was removed on purpose; keep the canvas text-free.
   DPR=1 and HiDPI is never tested). Test DPR 1 and 2 and a short-wide window
   (~1394×269) — that is a real viewing layout.
 - Verify visually with one still per scene: `?t=6`, `?t=22`, `?t=38`, `?t=54`,
-  `?t=70`, `?t=86` — assert content, palette and brightness profile per
+  `?t=70`, `?t=86`, `?t=102` — assert content, palette and brightness profile per
   scene (thin bright lines average away in downscaled analysis — judge peaks,
   not means). A partially-black desktop capture is usually a compositor/GPU
   glitch on the capturing machine, not a shader bug — reproduce headlessly
