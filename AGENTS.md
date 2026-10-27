@@ -25,8 +25,9 @@ microphone and file input.
 
 ## How it works
 
-- One full-screen fragment shader; the timeline loops through 3 scenes of
-  `SEG = 16` s each, crossfading over the last 2.5 s. `uTime` drives everything.
+- One full-screen fragment shader; the timeline loops through 6 scenes of
+  `SEG = 16` s each (plasma, tunnel, raymarched logo, metaballs, wireframe
+  vectors, fire), crossfading over the last 2.5 s. `uTime` drives everything.
 - **Debug stills: `index.html?t=<seconds>`** freezes the timeline — the way to
   check a specific scene deterministically (e.g. `?t=36` for the raymarch scene).
 - Audio: `AnalyserNode` → 256-bin spectrum → 256×1 LUMINANCE texture (`uAudio`)

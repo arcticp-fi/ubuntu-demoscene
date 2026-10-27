@@ -35,7 +35,7 @@ see reacts to the analyser output.
 | ⛶ / `f` | fullscreen |
 | `esc` | show / hide the intro panel |
 
-## The show (48 s loop, crossfaded every 16 s)
+## The show (96 s loop, crossfaded every 16 s)
 
 1. **plasma** — the classic sine plasma with copper bars and a glowing
    circle-of-friends logo pulsing on every kick
@@ -44,6 +44,12 @@ see reacts to the analyser output.
 3. **raymarched logo** — the circle of friends extruded in 3D (an SDF prism),
    spinning like a coin above an aubergine checkerboard with orange grid glow,
    soft shadows and a halo that breathes with the bass
+4. **metaballs** — six aubergine blobs with soft merges and hot orange seams,
+   swelling with the bass
+5. **vectors** — the friends as a spinning wireframe over a twinkling
+   starfield, the classic vector-object homage
+6. **fire** — the classic fire effect in Canonical colours — aubergine smoke,
+   orange flames, white-hot heart, embers, and the kick makes it surge
 
 Overlays: spectrum bars along the bottom, a slanted greetings scroller, then a
 CRT grade (curvature, scanlines, vignette, grain, kick flash).
