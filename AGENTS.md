@@ -9,8 +9,9 @@ from a single self-contained `index.html` — no build step, no dependencies,
 WebGL 1.0 / GLSL ES 1.00 so it runs anywhere, including software rasterizers.
 
 Current production: **ubuntu × audio** — an audio-reactive shader demo
-(plasma → tunnel → raymarched logo) with a built-in WebAudio chiptune,
-microphone and file input.
+(plasma, tunnel, raymarched logo, metaballs, wireframe vectors, fire) with a
+built-in WebAudio chiptune, microphone and file input. No scroller/text overlay
+on the show — it was removed on purpose; keep the canvas text-free.
 
 ## Rules
 
@@ -39,31 +40,15 @@ microphone and file input.
   never cranks the gain. Level and auto flag persist in localStorage
   (`uaxdb`, `uaxauto`); Chrome's `autoGainControl` is disabled in getUserMedia.
   `window.__demoLevels` exposes micDb / auto in slots 6/7.
-- Greetings scroller: `MESSAGE` baked into a 2D canvas strip (height 128,
-  width = POT ladder up to `MAX_TEXTURE_SIZE`, font shrunk to fit), uploaded as
-  `uText` with `REPEAT` wrap. The shader samples it in a band and `uTextSz`
-  carries the strip dimensions. The Ubuntu typeface is embedded as base64
-  `@font-face` (UFL 1.0, LICENSE-UbuntuFont); the bake runs immediately with
-  whatever face is ready and re-bakes with real metrics once
-  `document.fonts.load` resolves.
+- The Ubuntu typeface is embedded as base64 `@font-face` (UFL 1.0,
+  LICENSE-UbuntuFont) for the DOM UI (overlay title, buttons, HUD).
 
-## Gotchas — read before touching the shader or scroller
+## Gotchas — read before touching the shader
 
-- **`gl_FragCoord.y` is 0 at the screen BOTTOM.** All screen-space overlays are
-  anchored from the bottom: spectrum bars at `suv.y < 0.16`, scroller band at
-  `suv.y` 0.175–0.305. From the top of a H×W screenshot the band is at rows
-  `0.695·H … 0.825·H`. Measure there, not near the top.
-- **`UNPACK_FLIP_Y_WEBGL` must be `true` for the scroller upload.** Band-bottom
-  samples V=0; only the flipped upload puts the canvas bottom row there. Remove
-  the flip and the glyphs render upside down.
-- **Texture-U offsets are screen-width units.** Express slant, scroll speed and
-  shadow offset in texture pixels divided by `uTextSz.x` so they survive strip
-  and window changes. (A raw `0.28` slant once produced ~75° shear.)
-- **Match horizontal sampling scale to the vertical one** or glyphs compress:
-  `uspan = uRes.x*uTextSz.y/(uTextSz.x*0.13*uRes.y)`.
-- Size the scroller font to fill the band (target ~88 px in the 128 px canvas)
-  and lengthen the strip, never the reverse — small text lost in the band is a
-  bug, not a style.
+- **`gl_FragCoord.y` is 0 at the screen BOTTOM.** Screen-space overlays are
+  anchored from the bottom: the spectrum bars live at `suv.y < 0.16`.
+- Smoothstep edges must increase (`edge0 < edge1`); GLSL leaves the reverse
+  undefined — write `1.0 - smoothstep(a, b, x)` instead.
 
 ## Verifying changes headlessly
 
@@ -73,19 +58,17 @@ microphone and file input.
   `--force-device-scale-factor` actually applies (puppeteer otherwise pins
   DPR=1 and HiDPI is never tested). Test DPR 1 and 2 and a short-wide window
   (~1394×269) — that is a real viewing layout.
-- **Fonts:** the Ubuntu face is embedded, but headless boxes may still have
-  zero *system* fonts — on such machines even the embedded webfont fails to
-  load (faces stuck in `status: "error"`) and the scroller bakes empty.
-  Drop a TTF into `~/.local/share/fonts` (e.g. DejaVu from the gnome snap),
-  wait past `document.fonts.load` (networkidle0 + ~1 s), then assert the strip
-  has opaque pixels *and* read the rendered band.
-- `bakeScroller` re-binds texture unit 1 explicitly: it re-runs asynchronously
-  (font load) while the frame loop already binds the spectrum texture on
-  unit 0. Keep that binding when editing, or the re-bake corrupts `uAudio`.
-- Verify visually at `?t=0`, `?t=16`, `?t=36`: upright glyphs, subtle slant
-  (~9°), 1:1 aspect, text filling the band. A partially-black desktop capture
-  is usually a compositor/GPU glitch on the capturing machine, not a shader
-  bug — reproduce headlessly before "fixing" one.
+- Verify visually with one still per scene: `?t=6`, `?t=22`, `?t=38`, `?t=54`,
+  `?t=70`, `?t=86` — assert content, palette and brightness profile per
+  scene (thin bright lines average away in downscaled analysis — judge peaks,
+  not means). A partially-black desktop capture is usually a compositor/GPU
+  glitch on the capturing machine, not a shader bug — reproduce headlessly
+  before "fixing" one.
+- **Fonts:** the Ubuntu face is embedded for the DOM UI, but headless boxes
+  may still have zero *system* fonts — on such machines even the embedded
+  webfont fails to load (faces stuck in `status: "error"`). Drop a TTF into
+  `~/.local/share/fonts` (e.g. DejaVu from the gnome snap) before judging
+  DOM text rendering.
 - Snap-confined Chromium cannot run headless on this machine (D-Bus AppArmor
   fatal); that is why the standalone `chrome-headless-shell` zip is used.
 - A tmp cleaner periodically wipes `/tmp` — a long pause costs the whole

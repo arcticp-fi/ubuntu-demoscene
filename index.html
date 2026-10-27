@@ -108,7 +108,7 @@
   </svg>
   <h1>ubuntu <span>×</span> audio</h1>
   <p>a one-file shader demo · 90s demoscene spirit · Canonical colours<br>
-     plasma → tunnel → raymarched logo, all dancing to the music</p>
+     plasma · tunnel · logo · metaballs · vectors · fire — all dancing to the music</p>
   <div class="row">
     <button class="btn" id="btnStart">▶ start the demo</button>
     <button class="btn ghost" id="btnMic">🎙 use microphone</button>
@@ -157,8 +157,6 @@ uniform float     uTime;    // seconds
 uniform vec4      uLevels;  // bass, mid, high, beat
 uniform vec3      uScene;   // sceneA, sceneB, crossfade
 uniform sampler2D uAudio;   // 256x1 spectrum, 0..1
-uniform sampler2D uText;    // greetings scroller strip
-uniform vec2      uTextSz;  // scroller strip size in px
 
 // ---- Canonical / Ubuntu core palette ----
 const vec3 C_DARK   = vec3(0.173, 0.000, 0.118); // #2C001E dark aubergine
@@ -455,21 +453,6 @@ void main(){
     col += C_WHITE*(1.0 - smoothstep(0.0, 0.007, abs(suv.y - h)))*0.30;
   }
 
-  // ---- slanted greetings scroller ----
-  float yy = (suv.y - 0.175)/0.13;
-  if (yy > 0.0 && yy < 1.0){
-    // sample the strip so its horizontal texel scale matches the vertical one
-    // (uTextSz.y texture px spread over 0.13*uRes.y): glyphs stay 1:1 on any window;
-    // slant, scroll speed and shadow offset are in texture px, so they are
-    // invariant no matter how wide the strip turned out to be
-    float uspan = uRes.x*uTextSz.y/(uTextSz.x*0.13*uRes.y);
-    float x = suv.x*uspan + (20.0/uTextSz.x)*(yy - 0.5) + uTime*(164.0/uTextSz.x);
-    vec4 tx = texture2D(uText, vec2(x, yy));
-    vec4 sh = texture2D(uText, vec2(x + 10.0/uTextSz.x, yy - 0.03));
-    col = mix(col, C_DARK, sh.a*0.75);
-    col = mix(col, mix(C_ORANGE, C_WHITE, 0.30 + 0.62*yy), tx.a*0.92);
-  }
-
   // ---- grade: scanlines, vignette, grain, kick flash ----
   col *= 0.88 + 0.12*sin(suv.y*uRes.y*3.14159);
   vec2 sv = clamp(suv, 0.002, 0.998);
@@ -514,7 +497,7 @@ gl.enableVertexAttribArray(aPos);
 gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
 
 const U = {};
-["uRes","uTime","uLevels","uScene","uAudio","uText","uTextSz"].forEach(n => U[n] = gl.getUniformLocation(prog, n));
+["uRes","uTime","uLevels","uScene","uAudio"].forEach(n => U[n] = gl.getUniformLocation(prog, n));
 
 // --- audio spectrum texture: 256x1 luminance, bytes ---
 const spec = new Uint8Array(256);
@@ -528,50 +511,6 @@ gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 gl.uniform1i(U.uAudio, 0);
-
-// --- greetings scroller texture: as wide a POT strip as the message needs ---
-const MESSAGE = "UBUNTU × AUDIO — A ONE-FILE SHADER DEMO ··· 90s DEMOSCENE SPIRIT IN CANONICAL COLOURS " +
-                "··· GREETINGS FLY OUT TO: FUTURE CREW · ASSEMBLY · REVISION · SOLAR " +
-                "··· DROP YOUR OWN TUNE OR HIT THE MIC ··· ORANGE & AUBERGINE FOREVER ··· ";
-const tcv = document.createElement("canvas");
-tcv.height = 128;
-const tx2d = tcv.getContext("2d");
-const tfont = px => "bold " + px + 'px Ubuntu, "DejaVu Sans", Arial, sans-serif';
-const maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE);
-const texT = gl.createTexture();
-gl.activeTexture(gl.TEXTURE1);
-gl.bindTexture(gl.TEXTURE_2D, texT);
-// yy=0 sits at the band BOTTOM (gl_FragCoord.y is 0 at the screen bottom), so
-// flip the upload: V=0 becomes the canvas bottom row -> glyphs land upright
-gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-gl.uniform1i(U.uText, 1);
-
-function bakeScroller(){
-  // bind explicitly: this can re-run asynchronously (font load) after the
-  // frame loop has already bound the spectrum texture on unit 0
-  gl.activeTexture(gl.TEXTURE1);
-  gl.bindTexture(gl.TEXTURE_2D, texT);
-  tx2d.font = tfont(88);                                  // target size: fill the band
-  const w88 = Math.max(1, tx2d.measureText(MESSAGE).width);
-  let stripW = 2048;
-  while (stripW < w88 + 232 && stripW*2 <= maxTex) stripW *= 2;  // POT ladder (REPEAT needs POT)
-  tcv.width = stripW;
-  tx2d.font = tfont(Math.max(16, Math.floor(88*Math.min(1, (stripW - 232)/w88))));
-  tx2d.textBaseline = "middle";
-  tx2d.fillStyle = "#ffffff";
-  tx2d.fillText(MESSAGE, 16, 64);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, tcv);
-  gl.uniform2f(U.uTextSz, stripW, 128);
-}
-bakeScroller();
-// the embedded Ubuntu face decodes asynchronously: re-measure and re-bake with
-// its real metrics once document.fonts has it (metrics change stripW and size)
-if (document.fonts && document.fonts.load)
-  document.fonts.load("bold 88px Ubuntu").then(bakeScroller, bakeScroller);
 
 function resize(){
   const dpr = Math.min(window.devicePixelRatio || 1, 2);

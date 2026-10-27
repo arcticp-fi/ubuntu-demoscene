@@ -51,8 +51,8 @@ see reacts to the analyser output.
 6. **fire** — the classic fire effect in Canonical colours — aubergine smoke,
    orange flames, white-hot heart, embers, and the kick makes it surge
 
-Overlays: spectrum bars along the bottom, a slanted greetings scroller, then a
-CRT grade (curvature, scanlines, vignette, grain, kick flash).
+Overlays: spectrum bars along the bottom, then a CRT grade (curvature,
+scanlines, vignette, grain, kick flash).
 
 ## How audio drives it
 
