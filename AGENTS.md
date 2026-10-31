@@ -37,8 +37,9 @@ on the show — it was removed on purpose; keep the canvas text-free.
   With no audio playing, a synthetic groove feeds the same uniforms.
 - Microphone level: `micSrc → micGain → analyser`, a ±20 dB slider in the HUD
   (mic mode only) plus an adaptive mode (default, `micAutoOn`) that chases a
-  0.32 loudness target at ≤8 dB/s, gated above the noise floor so silence
-  never cranks the gain. Level and auto flag persist in localStorage
+  0.42 loudness target (on the expanded bands) at ≤8 dB/s, gated above the
+  noise floor so silence never cranks the gain. Level and auto flag persist in
+  localStorage
   (`uaxdb`, `uaxauto`); Chrome's `autoGainControl` is disabled in getUserMedia.
   `window.__demoLevels` exposes micDb / auto in slots 6/7.
 - The Ubuntu typeface is embedded as base64 `@font-face` (UFL 1.0,

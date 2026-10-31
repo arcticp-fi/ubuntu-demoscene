@@ -196,7 +196,7 @@ float sdLogo(vec2 p){
 vec3 scenePlasma(vec2 p){
   float t = uTime;
   vec2 q = p;
-  q += (0.10 + 0.16*uLevels.x)*vec2(sin(t*0.8 + p.y*4.0), cos(t*0.7 - p.x*4.0));
+  q += (0.08 + 0.30*uLevels.x)*vec2(sin(t*0.8 + p.y*4.0), cos(t*0.7 - p.x*4.0));
   float v = sin(q.x*4.5 + t*1.7)
           + sin(q.y*5.0 - t*1.2)
           + sin((q.x + q.y)*3.5 + t*0.8)
@@ -204,13 +204,14 @@ vec3 scenePlasma(vec2 p){
   v = v*0.22 + 0.5;
   vec3 col = pal(v*0.42 + t*0.035);
   float bars = pow(0.5 + 0.5*sin(p.y*24.0 - t*2.6), 4.0);   // copper bars
-  col += C_ORANGE*bars*(0.03 + 0.22*uLevels.y);
-  vec2 lp = rot(t*0.5)*p/(0.30*(1.0 + 0.22*uLevels.w));     // logo, pulsing with the kick
+  col += C_ORANGE*bars*(0.02 + 0.42*uLevels.y);
+  col += C_WHITE*pow(max(v - 0.78, 0.0), 2.0)*uLevels.z*1.6;  // hats sparkle the plasma crests
+  vec2 lp = rot(t*0.5)*p/(0.30*(1.0 + 0.38*uLevels.w));     // logo, pulsing with the kick
   float d = sdLogo(lp);
   float fill = 1.0 - smoothstep(-0.004, 0.004, d);
   float glow = exp(-abs(d)*20.0);
   col = mix(col, C_WHITE, fill*0.85);
-  col += C_ORANGE*glow*(0.30 + 1.2*uLevels.w);
+  col += C_ORANGE*glow*(0.26 + 2.0*uLevels.w);
   return col;
 }
 
@@ -219,22 +220,22 @@ vec3 sceneTunnel(vec2 p){
   float t = uTime;
   float r = length(p) + 1e-4;
   float a = atan(p.y, p.x);
-  r *= 1.0 + 0.22*uLevels.x*sin(a*3.0 + t*2.0) + 0.10*uLevels.y*sin(a*7.0 - t*3.0);
-  float z = 0.30/r + t*0.9;
+  r *= 1.0 + 0.40*uLevels.x*sin(a*3.0 + t*2.0) + 0.18*uLevels.y*sin(a*7.0 - t*3.0);
+  float z = 0.30/r + t*0.9 + 0.8*uLevels.x + 1.2*uLevels.w;   // the music shoves you forward
   float pat = sin(z*3.0 + a*5.0)*sin(z*6.0 - a*3.0 + t*0.7);
   vec3 col = pal(pat*0.21 + 0.5 + z*0.05);
   col *= 0.25 + 0.75*smoothstep(0.02, 0.50, r);
   float sx = a/6.2831853; sx = sx - floor(sx);              // spectrum painted around the walls
   float s1 = spec(abs(sx));
-  col += C_LIGHT*s1*0.40*(1.0 - smoothstep(0.15, 0.60, r));
-  float s = 0.30*(1.0 + 0.25*uLevels.w);
+  col += mix(C_LIGHT, C_ORANGE, 0.35)*s1*0.65*(1.0 - smoothstep(0.15, 0.60, r));
+  float s = 0.30*(1.0 + 0.40*uLevels.w);
   vec2 lp = rot(-t*0.4)*p/s;
   float d = sdLogo(lp);
   float fade = 1.0 - smoothstep(0.10, 0.45, r);
   float fill = 1.0 - smoothstep(-0.004, 0.004, d);
   float glow = exp(-abs(d)*18.0);
   col = mix(col, mix(C_ORANGE, C_WHITE, 0.35), fill*fade*0.85);
-  col += C_ORANGE*glow*fade*(0.35 + 1.4*uLevels.w);
+  col += C_ORANGE*glow*fade*(0.30 + 2.2*uLevels.w);
   return col;
 }
 
@@ -243,10 +244,10 @@ float mapScene(vec3 q){
   float df = q.y + 1.25;                                   // floor plane
   vec3 o = q - vec3(0.0, 0.18 + 0.10*sin(uTime*1.3), 0.0);
   o.xz = rot(uTime*0.8)*o.xz;                              // spin like a coin
-  float s = 1.0/(1.0 + 0.22*uLevels.w);                     // beat scale
+  float s = 1.0/(1.0 + 0.40*uLevels.w);                     // beat scale
   vec2 lp = o.xy*s;
   float d2 = sdLogo(lp);
-  float h = 0.10 + 0.05*uLevels.x;                          // thickness breathes with bass
+  float h = 0.09 + 0.13*uLevels.x;                          // thickness breathes with bass
   vec2 w = vec2(d2, abs(o.z) - h);
   float dl = min(max(w.x, w.y), 0.0) + length(max(w, vec2(0.0)));
   dl *= s;
@@ -282,7 +283,7 @@ vec3 sceneLogo(vec2 p){
   vec3 rd = normalize(uu*p.x + vv*p.y + ww*1.9);
 
   vec3 sky = mix(C_DARK*0.85, C_MID, smoothstep(-0.30, 0.80, rd.y));
-  sky += C_ORANGE*pow(max(dot(rd, normalize(vec3(2.0, 2.5, 1.5))), 0.0), 5.0)*0.55;
+  sky += C_ORANGE*pow(max(dot(rd, normalize(vec3(2.0, 2.5, 1.5))), 0.0), 5.0)*(0.40 + 0.55*uLevels.x);
 
   float tt = 0.0, d = 1.0, glow = 0.0;
   vec3 pos = ro;
@@ -307,7 +308,7 @@ vec3 sceneLogo(vec2 p){
     vec3 floorCol = mix(C_MID*0.75, C_GREY*0.42, ch);
     vec2 gf = abs(fract(fc) - 0.5);
     float line = 1.0 - smoothstep(0.0, 0.06, 0.5 - max(gf.x, gf.y));
-    floorCol += C_ORANGE*line*line*(0.35 + 0.55*uLevels.y);
+    floorCol += C_ORANGE*line*line*(0.28 + 0.95*uLevels.y);
     // orange logo with a rim of white, like a badge
     float rim = pow(1.0 - max(dot(n, -rd), 0.0), 2.5);
     vec3 logoCol = mix(C_ORANGE, C_WHITE, rim*0.85);
@@ -317,10 +318,10 @@ vec3 sceneLogo(vec2 p){
     float sp = pow(max(dot(n, normalize(L - rd)), 0.0), mix(28.0, 60.0, isLogo));
     col  = alb*(0.34 + 1.15*dif*sh + 0.40*dif2);
     col += C_WHITE*sp*(sh*0.85 + 0.15);
-    col += C_ORANGE*isLogo*(0.12 + uLevels.w*0.35);
+    col += C_ORANGE*isLogo*(0.10 + uLevels.w*0.65);
     col  = mix(col, sky, 1.0 - exp(-tt*tt*0.010));
   }
-  col += C_ORANGE*glow*0.016*(0.6 + uLevels.w);            // orange halo
+  col += C_ORANGE*glow*0.020*(0.45 + 1.7*uLevels.w);      // orange halo
   return col;
 }
 
@@ -336,7 +337,8 @@ vec3 sceneBlobs(vec2 p){
     float fi = float(i);
     vec2 c = vec2(sin(t*0.37 + fi*1.7)*0.42 + sin(t*0.61 + fi*2.3)*0.14,
                  cos(t*0.43 + fi*2.9)*0.30 + cos(t*0.53 + fi*1.1)*0.12);
-    float r = 0.12 + 0.045*sin(t*0.9 + fi*2.2) + 0.08*uLevels.x*sin(t*1.3 + fi*0.9);
+    c *= 1.0 + 0.30*uLevels.y;                              // mids swing them wider
+    float r = 0.12 + 0.045*sin(t*0.9 + fi*2.2) + 0.16*uLevels.x*sin(t*1.3 + fi*0.9);
     field = smin(field, length(p - c) - r, 0.16);
   }
   float f = -field/0.16;                             // ~1 at a blob's core
@@ -344,8 +346,8 @@ vec3 sceneBlobs(vec2 p){
   col = mix(col, C_LIGHT,  smoothstep(0.10, 0.45, f));
   col = mix(col, C_ORANGE, smoothstep(0.40, 0.75, f));
   col = mix(col, C_WHITE,  smoothstep(0.70, 1.00, f));
-  col += C_ORANGE*exp(-abs(f)*3.0)*(0.22 + 0.9*uLevels.w);           // hot merge line
-  col += C_LIGHT*0.05*sin(p.x*7.0 + t*0.7)*sin(p.y*7.0 - t*0.5);     // faint interference
+  col += C_ORANGE*exp(-abs(f)*3.0)*(0.18 + 1.7*uLevels.w);           // hot merge line
+  col += C_LIGHT*(0.04 + 0.16*uLevels.z)*sin(p.x*7.0 + t*0.7)*sin(p.y*7.0 - t*0.5); // hats ripple it
   return col;
 }
 
@@ -360,15 +362,15 @@ vec3 sceneWire(vec2 p){
   float h = fract(sin(dot(floor(su), vec2(12.9898, 78.233)))*43758.5453);
   vec2 spos = vec2(fract(h*7.31), fract(h*13.37)) - 0.5;
   float star = h > 0.93 ? 1.0 - smoothstep(0.0, 0.09, length(fract(su) - 0.5 - spos*0.6)) : 0.0;
-  col += C_WHITE*star*(0.22 + 0.30*sin(t*2.3 + h*40.0))*smoothstep(0.0, 0.4, rd.z);
+  col += C_WHITE*star*(0.22 + 0.30*sin(t*2.3 + h*40.0))*smoothstep(0.0, 0.4, rd.z)*(0.85 + 1.8*uLevels.z);
   // the friends as coplanar wire circles, spun in 3D: ray/plane hit, exact circles
   float ay = t*0.8;
-  float ax = 0.4*sin(t*0.43) + 0.10*uLevels.w;
+  float ax = 0.4*sin(t*0.43) + 0.24*uLevels.w;
   vec3 N = vec3(0.0, 0.0, 1.0);
   N.xz = rot(ay)*N.xz; N.yz = rot(ax)*N.yz;
   float dn = dot(rd, N);
   if (abs(dn) > 0.02){
-    vec3 hit = (ro + rd*(-dot(ro, N)/dn))/(1.0 + 0.10*uLevels.w);   // beat = scale pulse
+    vec3 hit = (ro + rd*(-dot(ro, N)/dn))/(1.0 + 0.22*uLevels.w);   // beat = scale pulse
     float d = 1e9;
     for (int i = 0; i < 4; i++){
       vec3 c = vec3(0.0);
@@ -384,7 +386,7 @@ vec3 sceneWire(vec2 p){
     float fade = smoothstep(0.02, 0.25, abs(dn));   // fade out when edge-on
     float fill = 1.0 - smoothstep(-0.012, 0.03, d);
     col = mix(col, C_MID*0.55, fill*0.30*fade);
-    col += mix(C_ORANGE, C_WHITE, 0.3)*exp(-abs(d)*55.0)*(0.55 + 0.75*uLevels.w)*fade;
+    col += mix(C_ORANGE, C_WHITE, 0.3)*exp(-abs(d)*55.0)*(0.55 + 1.5*uLevels.w)*fade;
   }
   return col;
 }
@@ -404,20 +406,20 @@ vec3 sceneFire(vec2 p){
           + 0.3 *vnoise(q*6.0  + vec2(t*0.4, -t*3.9))
           + 0.2 *vnoise(q*12.0 + vec2(-t*0.6, -t*5.8));
   float base  = 1.0 - smoothstep(-0.45, 0.52, p.y);           // tall flame bed at the bottom
-  float flame = base*smoothstep(0.30, 0.85, n + base*0.30 + 0.22*uLevels.x);
-  flame *= 0.85 + 0.30*uLevels.x + 0.45*uLevels.w;             // the music stokes it
+  float flame = base*smoothstep(0.30, 0.85, n + base*0.30 + 0.34*uLevels.x);
+  flame *= 0.72 + 0.60*uLevels.x + 0.95*uLevels.w;             // the music stokes it
   vec3 col = C_DARK*0.85;
   col = mix(col, C_MID,    clamp(flame*2.3, 0.0, 1.0));
   col = mix(col, C_LIGHT,  clamp(flame*1.8 - 0.30, 0.0, 1.0));
   col = mix(col, C_ORANGE, clamp(flame*1.4 - 0.22, 0.0, 1.0));
   col = mix(col, C_WHITE,  clamp(flame*2.1 - 1.15, 0.0, 1.0));  // white-hot heart
-  col += C_ORANGE*exp(-abs(p.y + 0.44)*12.0)*0.22;              // glowing bed
+  col += C_ORANGE*exp(-abs(p.y + 0.44)*12.0)*(0.16 + 0.28*uLevels.x); // glowing bed
   vec2 eu = vec2(p.x*6.0, p.y*3.0 + t*1.5);                     // embers drifting up
   float eh = hash21(floor(eu));
   vec2 ep = fract(eu) - vec2(fract(eh*57.0), 0.25 + 0.5*fract(eh*31.0));
   float ember = eh > 0.965 ? exp(-dot(ep, ep)*80.0) : 0.0;
   col += mix(C_ORANGE, C_WHITE, 0.4)*ember
-        *(0.45 + 0.45*sin(t*5.0 + eh*40.0))*(1.0 - smoothstep(0.1, 0.45, p.y));
+        *(0.45 + 0.45*sin(t*5.0 + eh*40.0))*(1.0 - smoothstep(0.1, 0.45, p.y))*(1.0 + 1.2*uLevels.z);
   return col;
 }
 
@@ -447,7 +449,7 @@ vec3 sceneGlobe(vec2 p){
     col += C_WHITE*star*(0.15 + 0.25*sin(t*2.0 + h*40.0))*smoothstep(0.0, 0.4, rd.z);
   }
   float spin = t*0.20;
-  float tilt = 0.35 + 0.04*sin(t*0.30) + 0.03*uLevels.w;
+  float tilt = 0.35 + 0.04*sin(t*0.30) + 0.07*uLevels.w;
   float b = dot(ro, rd);
   float hh = b*b - dot(ro, ro) + 1.0;                  // ray vs unit sphere at the origin
   if (hh > 0.0){
@@ -469,7 +471,7 @@ vec3 sceneGlobe(vec2 p){
       float face = smoothstep(0.97, 1.04, dot(w, ro));
       float d = length(g - v);
       col += mix(C_ORANGE, C_WHITE, 0.35)*face*(exp(-d*d*2200.0) + 0.30*exp(-d*d*300.0))
-             *(0.75 + 0.8*uLevels.x);
+             *(0.55 + 1.7*uLevels.x);
     }
     for (int i = 0; i < 14; i++){                      // the circle: ring + cross links
       int ia = i < 10 ? i : (i == 10 ? 3 : (i == 11 ? 1 : (i == 12 ? 2 : 0)));
@@ -480,16 +482,16 @@ vec3 sceneGlobe(vec2 p){
       vec3 mid = normalize(a + b2);
       float within = smoothstep(cos(ang*0.5), cos(ang*0.5) + 0.05, dot(g, mid));
       float dC = abs(dot(g, nrm));
-      col += C_ORANGE*exp(-dC*dC*2500.0)*within*(0.90 + 0.80*uLevels.y + 1.20*uLevels.w);
+      col += C_ORANGE*exp(-dC*dC*2500.0)*within*(0.65 + 1.45*uLevels.y + 2.10*uLevels.w);
       float u = fract(t*(0.05 + 0.017*fract(float(i)*0.73 + 0.31)) + float(i)*0.618);
       u = mod(float(i), 2.0) > 0.5 ? 1.0 - u : u;      // alternate direction
       vec3 pq = (a*sin((1.0 - u)*ang) + b2*sin(u*ang))/max(sin(ang), 1e-3);
       float pd = length(g - pq);
-      col += mix(C_ORANGE, C_WHITE, 0.55)*exp(-pd*pd*2600.0)*within*(0.90 + 1.5*uLevels.w);
+      col += mix(C_ORANGE, C_WHITE, 0.55)*exp(-pd*pd*2600.0)*within*(0.65 + 2.7*uLevels.w);
     }
     col += C_ORANGE*exp(-hh*30.0)*0.20;                // rim of the atmosphere
   } else {
-    col += (C_ORANGE*0.6 + C_LIGHT*0.3)*exp(hh*22.0)*0.45*(0.7 + 0.5*uLevels.x);
+    col += (C_ORANGE*0.6 + C_LIGHT*0.3)*exp(hh*22.0)*0.45*(0.55 + 0.95*uLevels.x);
   }
   return col;
 }
@@ -510,6 +512,7 @@ void main(){
   vec2 suv = suv0 + cc*dot(cc, cc)*0.05;                   // gentle CRT curvature
   vec2 p = suv - 0.5;
   p.x *= uRes.x/uRes.y;
+  p *= 1.0 - 0.03*uLevels.w;                                 // camera punches in on the kick
 
   vec3 col = mix(scenePick(int(uScene.x + 0.5), p),
                  scenePick(int(uScene.y + 0.5), p), uScene.z);
@@ -519,7 +522,7 @@ void main(){
     float N = 44.0;
     float bi = floor(clamp(suv.x, 0.0, 0.999)*N);
     float f = spec((bi + 0.5)/N*0.6);
-    float h = 0.02 + f*0.11;
+    float h = 0.02 + f*0.14;
     if (suv.y < h){
       vec3 barc = mix(C_MID, C_ORANGE, bi/N);
       col = mix(col, barc*(0.35 + 0.9*f), 0.80);
@@ -534,7 +537,7 @@ void main(){
   col *= clamp(vig, 0.0, 1.0);
   float gr = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233)) + uTime*13.0)*43758.5453);
   col += (gr - 0.5)*0.03;
-  col += C_ORANGE*uLevels.w*0.045;
+  col += C_ORANGE*uLevels.w*0.075;
 
   gl_FragColor = vec4(col, 1.0);
 }
@@ -615,7 +618,7 @@ function initAudio(){
   AC = new (window.AudioContext || window.webkitAudioContext)();
   analyser = AC.createAnalyser();
   analyser.fftSize = 1024;
-  analyser.smoothingTimeConstant = 0.6;
+  analyser.smoothingTimeConstant = 0.5;
   micGain = AC.createGain(); micGain.gain.value = db2lin(micDb);
   masterG = AC.createGain(); masterG.gain.value = muted ? 0 : 0.9;
   comp = AC.createDynamicsCompressor();
@@ -864,11 +867,14 @@ function updateAudio(t, dt){
     for (let i = 2;  i < 10;  i++) b += spec[i]; b /= (8*255);
     for (let i = 10; i < 64;  i++) m += spec[i]; m /= (54*255);
     for (let i = 64; i < 200; i++) h += spec[i]; h /= (136*255);
-    bass += (b - bass)*Math.min(1, dt*14);
-    mid  += (m - mid) *Math.min(1, dt*14);
-    high += (h - high)*Math.min(1, dt*20);
+    // expand the bands so the picture really follows the music — byte-FFT band
+    // averages sit low (high especially), and a flat reading reads as "asleep"
+    b = Math.min(1, b*1.15); m = Math.min(1, m*1.45); h = Math.min(1, h*1.9);
+    bass += (b - bass)*Math.min(1, dt*18);
+    mid  += (m - mid) *Math.min(1, dt*18);
+    high += (h - high)*Math.min(1, dt*24);
     beatAvg += (b - beatAvg)*Math.min(1, dt*1.2);
-    if (b > beatAvg*1.28 + 0.04) beat = Math.min(1.2, beat + 0.9);
+    if (b > beatAvg*1.24 + 0.03) beat = Math.min(1.2, beat + 1.0);
     if (mode === "mic"){
       // adapt the mic level so loud rooms don't saturate the visuals and quiet
       // ones don't leave them asleep: chase a healthy average slowly (≤8 dB/s),
@@ -876,7 +882,7 @@ function updateAudio(t, dt){
       const loud = 0.6*bass + 0.3*mid + 0.1*high;
       agcLvl += (loud - agcLvl)*Math.min(1, dt*0.7);
       if (micAutoOn && agcLvl > 0.02){
-        const need = 20*Math.log10(0.32/Math.max(agcLvl, 1e-4));
+        const need = 20*Math.log10(0.42/Math.max(agcLvl, 1e-4));  // old 0.32 x ~1.3 band expansion
         micDb = Math.max(-20, Math.min(20, micDb + Math.max(-8*dt, Math.min(8*dt, need*dt/1.5))));
         if (Math.abs(micDb - micDbShown) >= 1){ micDbShown = micDb; applyMic(); syncMicUi(); }
       }

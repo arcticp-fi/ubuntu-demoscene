@@ -61,8 +61,10 @@ scanlines, vignette, grain, kick flash).
 ## How audio drives it
 
 - 256 FFT bins → a 256×1 luminance texture → sampled by the shader per pixel
-- `bass/mid/high` smoothed bands + a kick detector (bass vs. slow moving
-  average) → the `beat` uniform → logo scale pulses, tunnel wobble, flashes
+- `bass/mid/high` smoothed bands (gently expanded — byte-FFT averages sit low)
+  + a kick detector (bass vs. slow moving average) → the `beat` uniform →
+  logo scale pulses, tunnel thrust, camera punch-ins, flashes; the high band
+  twinkles the stars, embers and plasma crests
 - when no audio is playing yet, a synthetic groove feeds the same uniforms so
   the intro screen dances too
 
