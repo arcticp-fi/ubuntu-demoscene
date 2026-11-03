@@ -35,7 +35,7 @@ see reacts to the analyser output.
 | ⛶ / `f` | fullscreen |
 | `esc` | show / hide the intro panel |
 
-## The show (112 s loop, crossfaded every 16 s)
+## The show (160 s loop, crossfaded every 16 s)
 
 1. **plasma** — the classic sine plasma with copper bars and a glowing
    circle-of-friends logo pulsing on every kick
@@ -54,6 +54,12 @@ see reacts to the analyser output.
    by one great circle of connections with bright pulses travelling between
    them — the circle of friends at planetary scale, a nod to Ubuntu's
    "humanity to others"
+8. **starfield** — the classic forward warp through a Canonical nebula; bass
+   and kicks push the speed until the stars streak into copper light trails
+9. **rotozoomer** — the endless rotating-zooming bars ride, mids twist it and
+   the circle of friends rides the zoom, flashing white on every kick
+10. **julia** — an animated Julia set diving into itself: the mids steer its
+    shape, the dive breathes with the track and lurches in on the beat
 
 Overlays: spectrum bars along the bottom, then a CRT grade (curvature,
 scanlines, vignette, grain, kick flash).

@@ -108,7 +108,8 @@
   </svg>
   <h1>ubuntu <span>×</span> audio</h1>
   <p>a one-file shader demo · 90s demoscene spirit · Canonical colours<br>
-     plasma · tunnel · logo · blobs · vectors · fire · the network — all dancing to the music</p>
+     plasma · tunnel · logo · blobs · vectors · fire · the network<br>
+     stars · rotozoom · julia — all dancing to the music</p>
   <div class="row">
     <button class="btn" id="btnStart">▶ start the demo</button>
     <button class="btn ghost" id="btnMic">🎙 use microphone</button>
@@ -496,6 +497,88 @@ vec3 sceneGlobe(vec2 p){
   return col;
 }
 
+/* ---------- scene 7: starfield warp — flying through a Canonical nebula ---------- */
+vec3 sceneStars(vec2 p){
+  float t = uTime;
+  float r = length(p);
+  vec3 col = C_DARK*0.45 + C_MID*0.10*exp(-r*r*1.1) + C_LIGHT*0.06*exp(-(r-0.9)*(r-0.9)*2.5);
+  float spd = 0.35 + 1.1*uLevels.x + 1.6*uLevels.w;    // bass & kick push the warp speed
+  vec2 rd = r > 1e-4 ? p/r : vec2(0.0, 1.0);           // radial direction for streaks
+  for (int i = 0; i < 16; i++){
+    float fi = float(i);
+    float z = mod(fi*3.7 - t*spd*4.0, 9.0) + 0.15;     // this shell's depth on the way in
+    float zn = z/9.15;
+    vec2 uv = p/z*2.2 + fi*1.618;
+    vec2 id = floor(uv);
+    vec2 f = fract(uv) - 0.5;
+    float h = hash21(id + fi*7.31);
+    if (h > 0.5){                                      // sparse star in this cell
+      vec2 off = vec2(hash21(id + 3.7), hash21(id + 9.1)) - 0.5;
+      vec2 g = f - off*0.7;
+      float gr = dot(g, rd);
+      float gt = g.x*rd.y - g.y*rd.x;
+      float k = z*0.4545;                              // cell -> screen scale: constant star size
+      float sig = 0.006 + 0.005*(1.0 - zn);            // a touch fatter up close
+      float grs = sig*(1.0 + spd*2.2/max(z, 0.35));    // near & fast -> radial streaks
+      float s = exp(-(gt*k)*(gt*k)/(sig*sig) - (gr*k)*(gr*k)/(grs*grs));
+      vec3 stc = mix(C_WHITE, C_ORANGE, fract(h*7.0)*0.45);
+      col += stc*s*(1.0 - zn)*(0.9 + 2.2*uLevels.w)*(0.8 + 0.4*sin(t*3.0 + h*60.0));
+    }
+  }
+  col += C_ORANGE*exp(-r*3.5)*0.10*(0.4 + spd)*(0.5 + uLevels.w);  // hyperspace core
+  return col;
+}
+
+/* ---------- scene 8: rotozoomer — the endless rotating-zoom bars ride ---------- */
+vec3 sceneRotozoom(vec2 p){
+  float t = uTime;
+  float zoom = exp(sin(t*0.55)*1.1) * (1.0 + 0.30*uLevels.x);   // bass pushes the dive
+  float a = t*0.42 + 0.35*uLevels.y;                            // mids twist it
+  vec2 q = rot(a)*p/zoom*3.0;
+  float detail = 1.0 - smoothstep(1.7, 2.9, zoom);              // fade moire at deep zoom
+  float v = 0.5 + 0.5*sin(q.x*2.4)*sin(q.y*2.4 + sin(q.x*0.7 + t*0.6));
+  vec3 col = pal(v*0.55 + t*0.03 + 0.1);
+  float bars = pow(0.5 + 0.5*sin(q.y*3.1 - t*2.2), 3.0);
+  col += C_ORANGE*bars*(0.06 + 0.30*uLevels.y)*detail;
+  col = mix(col, pal(t*0.03 + 0.4), (1.0 - detail)*0.85);       // flat tint at the deepest
+  col *= 0.75 + 0.55*exp(-dot(p, p)*0.9);                       // centre spotlight
+  vec2 lp = rot(-t*0.3)*p/(0.34*(1.0 + 0.30*uLevels.w));        // friends ride the zoom
+  float d = sdLogo(lp);
+  float fill = 1.0 - smoothstep(-0.004, 0.004, d);
+  col = mix(col, C_WHITE, fill*0.92);
+  col += C_ORANGE*exp(-abs(d)*16.0)*(0.25 + 1.8*uLevels.w);     // and flash on the kick
+  return col;
+}
+
+/* ---------- scene 9: julia — an animated Julia set diving into itself ---------- */
+vec3 sceneJulia(vec2 p){
+  float t = uTime;
+  float ang = t*0.13 + 0.4*uLevels.y;                            // mids steer the shape
+  vec2 c = 0.7885*vec2(cos(ang), sin(ang))*(1.0 + 0.06*uLevels.x);
+  float zoom = exp(1.3*sin(t*0.33)) * (1.0 - 0.18*uLevels.w);    // breathing dive, kicks lurch in
+  vec2 z = p/(zoom*1.4);
+  float sm = 0.0;
+  float esc = -1.0;
+  for (int i = 0; i < 56; i++){
+    z = vec2(z.x*z.x - z.y*z.y, 2.0*z.x*z.y) + c;
+    if (dot(z, z) > 256.0){
+      sm = float(i) + 1.0 - log2(0.5*log2(dot(z, z)));           // smooth iteration count
+      esc = float(i);
+      break;
+    }
+  }
+  if (esc < 0.0) return C_DARK*0.6 + C_MID*0.35;                    // the set's interior
+  float u = clamp(sm/48.0, 0.0, 1.0);
+  float rings = 0.5 + 0.5*cos(sm*1.35 - t*(0.7 + 0.6*uLevels.y));   // onion bands flowing outward
+  vec3 col = mix(C_MID, C_LIGHT, rings);                            // aubergine field everywhere
+  col = mix(col, C_ORANGE, pow(rings, 4.0));                        // copper bands riding through
+  col = mix(col, C_ORANGE, smoothstep(0.2, 0.75, u));               // the set glows copper
+  col += C_WHITE*(pow(u, 6.0)*0.8 + pow(rings, 10.0)*0.3)           // white-hot rims and crests
+              * (0.5 + 1.2*uLevels.w);
+  col *= 0.78 + 0.3*exp(-dot(p, p)*1.2);
+  return col;
+}
+
 vec3 scenePick(int s, vec2 p){
   if (s == 0) return scenePlasma(p);
   if (s == 1) return sceneTunnel(p);
@@ -503,7 +586,10 @@ vec3 scenePick(int s, vec2 p){
   if (s == 3) return sceneBlobs(p);
   if (s == 4) return sceneWire(p);
   if (s == 5) return sceneFire(p);
-  return sceneGlobe(p);
+  if (s == 6) return sceneGlobe(p);
+  if (s == 7) return sceneStars(p);
+  if (s == 8) return sceneRotozoom(p);
+  return sceneJulia(p);
 }
 
 void main(){
@@ -904,7 +990,7 @@ function updateAudio(t, dt){
   window.__demoLevels = [bass, mid, high, beat, mode, AC ? AC.state : "no-audio", +micDb.toFixed(1), micAutoOn]; // debug hook
 }
 
-const SEG = 16, NSC = 7, LOOP = SEG*NSC;
+const SEG = 16, NSC = 10, LOOP = SEG*NSC;
 let tParam = NaN;
 try { tParam = parseFloat(new URLSearchParams(location.search).get("t")); } catch(e){}
 
