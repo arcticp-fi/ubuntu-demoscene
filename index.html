@@ -511,26 +511,29 @@ vec3 sceneStars(vec2 p){
   float r = length(p);
   vec3 col = C_DARK*0.45 + C_MID*0.10*exp(-r*r*1.1) + C_LIGHT*0.06*exp(-(r-0.9)*(r-0.9)*2.5);
   float spd = 0.35 + 1.1*uLevels.x + 1.6*uLevels.w;    // bass & kick push the warp speed
-  vec2 rd = r > 1e-4 ? p/r : vec2(0.0, 1.0);           // radial direction for streaks
-  for (int i = 0; i < 16; i++){
+  const float M = 42.0;                                 // angular lanes around the vanishing point
+  float laneF = (atan(p.y, p.x) + 3.14159) * (M/6.28318);
+  float lane = floor(laneF), lf = laneF - lane;         // which lane is this pixel in
+  for (int i = 0; i < 12; i++){                         // depth shells cycling toward us
     float fi = float(i);
-    float z = mod(fi*3.7 - t*spd*4.0, 9.0) + 0.15;     // this shell's depth on the way in
-    float zn = z/9.15;
-    vec2 uv = p/z*2.2 + fi*1.618;
-    vec2 id = floor(uv);
-    vec2 f = fract(uv) - 0.5;
-    float h = hash21(id + fi*7.31);
-    if (h > 0.5){                                      // sparse star in this cell
-      vec2 off = vec2(hash21(id + 3.7), hash21(id + 9.1)) - 0.5;
-      vec2 g = f - off*0.7;
-      float gr = dot(g, rd);
-      float gt = g.x*rd.y - g.y*rd.x;
-      float k = z*0.4545;                              // cell -> screen scale: constant star size
-      float sig = 0.006 + 0.005*(1.0 - zn);            // a touch fatter up close
-      float grs = sig*(1.0 + spd*2.2/max(z, 0.35));    // near & fast -> radial streaks
-      float s = exp(-(gt*k)*(gt*k)/(sig*sig) - (gr*k)*(gr*k)/(grs*grs));
-      vec3 stc = mix(C_WHITE, C_ORANGE, fract(h*7.0)*0.45);
-      col += stc*s*(1.0 - zn)*(0.9 + 2.2*uLevels.w)*(0.8 + 0.4*sin(t*3.0 + h*60.0));
+    float z = mod(fi*3.7 - t*spd*4.0, 9.0) + 0.15;      // this shell's depth on the way in
+    float zn = z/9.15;                                  // 1 far .. 0 near
+    for (int dl = 0; dl < 3; dl++){                     // lane + both neighbours: seamless trails
+      float h = hash21(vec2(mod(lane + float(dl) - 1.0, M), fi*11.19));
+      if (h > 0.72){                                    // sparse star in this lane & shell
+        float c = 0.5 + (hash21(vec2(h, fi)) - 0.5)*0.6;            // drift within the lane
+        float head = (0.10 + 2.9*pow(1.0 - zn, 1.7))*(0.45 + 1.0*fract(h*13.0));  // scattered centre -> rim
+        float len = (0.05 + 1.3*(1.0 - zn)*(1.0 - zn))*spd;         // near & fast -> long trails
+        float xr = r - (head - 0.5*len);                // radial window centred mid-trail
+        float rad = exp(-(xr*xr)/pow(0.28*len + 0.02, 2.0));        // soft ends, no hard cuts
+        float tip = clamp((r - (head - len))/max(len, 1e-3), 0.0, 1.0);   // brighter toward the head
+        float angd = lf - c + float(dl) - 1.0;          // angular offset in lane units
+        float tang = r*angd*(6.28318/M);                // screen distance to the lane ray
+        float sig = 0.0045 + 0.010*(1.0 - zn);          // a touch fatter up close
+        vec3 stc = mix(C_WHITE, C_ORANGE, fract(h*7.0)*0.45);
+        col += stc*rad*exp(-(tang*tang)/(sig*sig))*tip
+             *(1.0 - zn)*(1.6 + 3.0*uLevels.w)*(0.8 + 0.4*sin(t*3.0 + h*60.0));
+      }
     }
   }
   col += C_ORANGE*exp(-r*3.5)*0.10*(0.4 + spd)*(0.5 + uLevels.w);  // hyperspace core
