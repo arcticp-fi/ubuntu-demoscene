@@ -116,7 +116,7 @@
     <button class="btn ghost" id="btnFile">🎵 load a tune</button>
   </div>
   <p>a chiptune is built in — or feed it your own sound.<br>
-     keys: <kbd>m</kbd> mic · <kbd>o</kbd> file · <kbd>f</kbd> fullscreen · <kbd>esc</kbd> this panel</p>
+     keys: <kbd>m</kbd> mic · <kbd>o</kbd> file · <kbd>f</kbd> fullscreen · <kbd>→</kbd> next scene · <kbd>esc</kbd> this panel</p>
 </div>
 
 <div id="hud">
@@ -128,6 +128,7 @@
   </span>
   <button class="btn ghost small" id="btnMic2" title="use microphone (m)">🎙</button>
   <button class="btn ghost small" id="btnFile2" title="load a tune (o)">🎵</button>
+  <button class="btn ghost small" id="btnNext" title="next scene (→)">⏭</button>
   <button class="btn ghost small" id="btnMute" title="mute">🔊</button>
   <button class="btn ghost small" id="btnFull" title="fullscreen (f)">⛶</button>
 </div>
@@ -1080,10 +1081,12 @@ $("#btnFull").addEventListener("click", () => {
   if (document.fullscreenElement) document.exitFullscreen();
   else document.documentElement.requestFullscreen();
 });
+$("#btnNext").addEventListener("click", nextScene);
 addEventListener("keydown", e => {
   if (e.key === "m" || e.key === "M") micFlow();
   if (e.key === "o" || e.key === "O") $("#file").click();
   if (e.key === "f" || e.key === "F") $("#btnFull").click();
+  if (e.key === "ArrowRight"){ nextScene(); e.preventDefault(); }
   if (e.key === "Escape") overlay.classList.toggle("gone");
 });
 addEventListener("mousemove", () => { if (started) showHud(); });
@@ -1138,6 +1141,15 @@ function updateAudio(t, dt){
 }
 
 const SEG = 16, NSC = 10, LOOP = SEG*NSC;
+let tOff = 0;                                           // scene-skip offset (hud button / →)
+function nextScene(){
+  if (isFinite(tParam) && tParam > 0){                  // debug stills: step to the next segment
+    tParam = (Math.floor(tParam/SEG) + 1)*SEG;
+    return;
+  }
+  const tt = ((performance.now()/1000 + tOff) % LOOP + LOOP) % LOOP;
+  tOff += SEG - (tt - Math.floor(tt/SEG)*SEG);          // land at the start of the next segment
+}
 let tParam = NaN;
 try { tParam = parseFloat(new URLSearchParams(location.search).get("t")); } catch(e){}
 
@@ -1145,7 +1157,7 @@ let lastT = performance.now();
 function frame(now){
   const dt = Math.max(0, Math.min(0.05, (now - lastT)/1000));
   lastT = now;
-  let t = now/1000;
+  let t = now/1000 + tOff;                              // tOff lets the hud skip scenes
   if (isFinite(tParam) && tParam > 0) t = tParam;   // debug stills: index.html?t=23
   updateAudio(t, dt);
 
